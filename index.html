@@ -14,10 +14,8 @@
   <link rel="icon" type="image/png" href="https://cdn-icons-png.flaticon.com/512/3075/3075977.png">
   <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/3075/3075977.png">
   
-  <!-- Manifest Embutido para Instalação no Celular -->
   <link rel="manifest" href='data:application/manifest+json,{"name":"Snack Cantina","short_name":"Cantina","start_url":".","display":"standalone","background_color":"#121214","theme_color":"#EA1D2C","icons":[{"src":"https://cdn-icons-png.flaticon.com/512/3075/3075977.png","sizes":"512x512","type":"image/png"}]}'>
 
-  <!-- Tailwind CSS & Ícones -->
   <script src="https://cdn.tailwindcss.com"></script>
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
 
@@ -40,7 +38,30 @@
 </head>
 <body class="min-h-screen flex flex-col select-none">
 
-  <!-- Cabeçalho Fixo estilo iFood -->
+  <!-- TELA DE LOGIN / BLOQUEIO -->
+  <div id="tela-login" class="fixed inset-0 bg-[#121214] z-[100] flex items-center justify-center p-6">
+    <div class="bg-[#202024] border border-gray-800 rounded-2xl p-6 w-full max-w-sm shadow-2xl text-center">
+      <div class="w-16 h-16 ifood-red rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg">
+        <i class="fas fa-hamburger text-3xl text-white"></i>
+      </div>
+      <h2 class="text-xl font-black text-white">SNACK CANTINA</h2>
+      <p class="text-xs text-gray-400 mt-1 mb-6">Acesso restrito ao Gestor de Pedidos</p>
+
+      <form onsubmit="fazerLogin(event)" class="space-y-4">
+        <div class="relative">
+          <i class="fas fa-lock absolute left-4 top-3.5 text-gray-500 text-sm"></i>
+          <input type="password" id="campo-senha" placeholder="Digite a senha de acesso..." required
+                 class="w-full bg-[#121214] border border-gray-700 rounded-xl pl-10 pr-4 py-3 text-sm text-white focus:outline-none focus:border-red-500 text-center tracking-widest">
+        </div>
+        <p id="erro-login" class="text-xs text-red-500 font-bold hidden">Senha incorreta! Tente novamente.</p>
+        <button type="submit" class="w-full ifood-red hover:bg-red-700 active:scale-95 text-white font-bold py-3 rounded-xl text-sm transition shadow-lg">
+          Entrar no Painel
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- CONTEÚDO DO PAINEL (Só carrega após login) -->
   <header class="ifood-red text-white px-5 py-3.5 shadow-lg flex justify-between items-center sticky top-0 z-50">
     <div class="flex items-center gap-3">
       <div class="w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center">
@@ -60,10 +81,12 @@
       <button onclick="carregarPlanilha()" class="bg-white/20 active:bg-white/30 text-white w-9 h-9 rounded-full flex items-center justify-center transition" title="Recarregar">
         <i class="fas fa-sync-alt text-xs"></i>
       </button>
+      <button onclick="fazerLogout()" class="bg-black/25 hover:bg-black/40 text-white w-9 h-9 rounded-full flex items-center justify-center transition" title="Bloquear Painel">
+        <i class="fas fa-lock text-xs"></i>
+      </button>
     </div>
   </header>
 
-  <!-- Filtros e Busca -->
   <div class="px-5 pt-4 max-w-6xl mx-auto w-full flex flex-col sm:flex-row gap-3 justify-between items-center">
     <div class="relative w-full sm:w-80">
       <i class="fas fa-search absolute left-3.5 top-3 text-gray-400 text-sm"></i>
@@ -81,22 +104,61 @@
     </div>
   </div>
 
-  <!-- Lista / Grade de Pedidos -->
   <main class="flex-1 p-5 max-w-6xl mx-auto w-full">
     <div id="grid-pedidos" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"></div>
   </main>
 
-  <!-- Som de Alerta (Novo Pedido) -->
   <audio id="som-alerta" src="https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3" preload="auto"></audio>
 
   <script>
-    // ID da sua planilha diretamente conectado
+    // ==========================================
+    // CONFIGURAÇÃO DE SENHA E PLANILHA
+    // ==========================================
+    const SENHA_ACESSO = '1234'; // <-- Mude aqui para a senha que sua cliente escolher!
     const SHEET_ID = '17o6cWNHn4SeyvIZ0rElyQIiZmJqfMl5MyUA1nW9JpVg';
 
     let pedidosAtuais = [];
     let entreguesLocal = JSON.parse(localStorage.getItem('cantina_entregues') || '[]');
     let filtroAtual = 'pendentes';
     let totalAnterior = 0;
+    let intervaloBusca = null;
+
+    function verificarAutenticacao() {
+      const logado = localStorage.getItem('cantina_auth') === SENHA_ACESSO;
+      if (logado) {
+        document.getElementById('tela-login').classList.add('hidden');
+        iniciarPainel();
+      } else {
+        document.getElementById('tela-login').classList.remove('hidden');
+      }
+    }
+
+    function fazerLogin(e) {
+      e.preventDefault();
+      const digitada = document.getElementById('campo-senha').value.trim();
+      if (digitada === SENHA_ACESSO) {
+        localStorage.setItem('cantina_auth', SENHA_ACESSO);
+        document.getElementById('erro-login').classList.add('hidden');
+        document.getElementById('campo-senha').value = '';
+        verificarAutenticacao();
+      } else {
+        document.getElementById('erro-login').classList.remove('hidden');
+      }
+    }
+
+    function fazerLogout() {
+      localStorage.removeItem('cantina_auth');
+      if (intervaloBusca) clearInterval(intervaloBusca);
+      pedidosAtuais = [];
+      document.getElementById('grid-pedidos').innerHTML = '';
+      verificarAutenticacao();
+    }
+
+    function iniciarPainel() {
+      carregarPlanilha();
+      if (intervaloBusca) clearInterval(intervaloBusca);
+      intervaloBusca = setInterval(carregarPlanilha, 4000);
+    }
 
     function corPagamento(forma) {
       const f = (forma || '').toLowerCase();
@@ -136,7 +198,6 @@
       renderizar();
     }
 
-    // Leitura direta e em tempo real da planilha do Google
     window.google = {
       visualization: {
         Query: {
@@ -156,7 +217,6 @@
               };
             }).filter(p => (p.codigo || p.pedido) && String(p.codigo) !== 'Código de Retirada');
 
-            // Toca alerta sonoro se chegar pedido novo
             if (totalAnterior > 0 && lista.length > totalAnterior) {
               document.getElementById('som-alerta').play().catch(() => {});
             }
@@ -169,6 +229,7 @@
     };
 
     function carregarPlanilha() {
+      if (localStorage.getItem('cantina_auth') !== SENHA_ACESSO) return;
       const scriptAntigo = document.getElementById('script-google');
       if (scriptAntigo) scriptAntigo.remove();
 
@@ -257,9 +318,7 @@
         </div>`;
     }
 
-    // Inicia e atualiza sozinho a cada 4 segundos
-    carregarPlanilha();
-    setInterval(carregarPlanilha, 4000);
+    verificarAutenticacao();
   </script>
 </body>
 </html>
