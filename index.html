@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Snack Cantina - Gestor de Pedidos</title>
+
+  <!-- Configurações de Aplicativo Mobile (PWA / Tela Cheia) -->
+  <meta name="theme-color" content="#EA1D2C">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Snack Cantina">
+  <link rel="icon" type="image/png" href="https://cdn-icons-png.flaticon.com/512/3075/3075977.png">
+  <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/3075/3075977.png">
+  
+  <!-- Manifest Embutido para Instalação no Celular -->
+  <link rel="manifest" href='data:application/manifest+json,{"name":"Snack Cantina","short_name":"Cantina","start_url":".","display":"standalone","background_color":"#121214","theme_color":"#EA1D2C","icons":[{"src":"https://cdn-icons-png.flaticon.com/512/3075/3075977.png","sizes":"512x512","type":"image/png"}]}'>
+
+  <!-- Tailwind CSS & Ícones -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+
+  <style>
+    body { 
+      background-color: #121214; 
+      color: #e1e1e6; 
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .ifood-red { background-color: #EA1D2C; }
+    .card-pedido { 
+      background-color: #202024; 
+      border-left: 6px solid #EA1D2C; 
+      transition: all 0.2s ease-in-out; 
+    }
+    .card-pedido:active { transform: scale(0.99); }
+    .card-entregue { border-left-color: #00875f; opacity: 0.5; }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col select-none">
+
+  <!-- Cabeçalho Fixo estilo iFood -->
+  <header class="ifood-red text-white px-5 py-3.5 shadow-lg flex justify-between items-center sticky top-0 z-50">
+    <div class="flex items-center gap-3">
+      <div class="w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center">
+        <i class="fas fa-hamburger text-xl"></i>
+      </div>
+      <div>
+        <h1 class="text-lg font-black tracking-wide leading-tight">SNACK CANTINA</h1>
+        <span class="text-[11px] opacity-90 block font-medium">Gestor de Pedidos</span>
+      </div>
+    </div>
+
+    <div class="flex items-center gap-2">
+      <div class="bg-black/25 px-3 py-1.5 rounded-full text-xs font-semibold flex items-center gap-2">
+        <span class="w-2 h-2 bg-green-400 rounded-full animate-ping"></span>
+        <span><strong id="contador-pedidos">0</strong> na fila</span>
+      </div>
+      <button onclick="carregarPlanilha()" class="bg-white/20 active:bg-white/30 text-white w-9 h-9 rounded-full flex items-center justify-center transition" title="Recarregar">
+        <i class="fas fa-sync-alt text-xs"></i>
+      </button>
+    </div>
+  </header>
+
+  <!-- Filtros e Busca -->
+  <div class="px-5 pt-4 max-w-6xl mx-auto w-full flex flex-col sm:flex-row gap-3 justify-between items-center">
+    <div class="relative w-full sm:w-80">
+      <i class="fas fa-search absolute left-3.5 top-3 text-gray-400 text-sm"></i>
+      <input type="text" id="busca" oninput="renderizar()" placeholder="Buscar por código (#) ou item..." 
+             class="w-full bg-[#202024] border border-gray-700/80 rounded-xl pl-10 pr-4 py-2 text-sm focus:outline-none focus:border-red-500 text-white placeholder-gray-500">
+    </div>
+    
+    <div class="flex gap-2 w-full sm:w-auto">
+      <button onclick="mudarFiltro('pendentes')" id="btn-pendentes" class="flex-1 sm:flex-none px-4 py-2 rounded-xl bg-red-600 text-white font-bold text-xs shadow-md">
+        Na Fila
+      </button>
+      <button onclick="mudarFiltro('todos')" id="btn-todos" class="flex-1 sm:flex-none px-4 py-2 rounded-xl bg-[#202024] text-gray-400 font-bold text-xs hover:text-white">
+        Todos os Pedidos
+      </button>
+    </div>
+  </div>
+
+  <!-- Lista / Grade de Pedidos -->
+  <main class="flex-1 p-5 max-w-6xl mx-auto w-full">
+    <div id="grid-pedidos" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"></div>
+  </main>
+
+  <!-- Som de Alerta (Novo Pedido) -->
+  <audio id="som-alerta" src="https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3" preload="auto"></audio>
+
+  <script>
+    // ID da sua planilha diretamente conectado
+    const SHEET_ID = '17o6cWNHn4SeyvIZ0rElyQIiZmJqfMl5MyUA1nW9JpVg';
+
+    let pedidosAtuais = [];
+    let entreguesLocal = JSON.parse(localStorage.getItem('cantina_entregues') || '[]');
+    let filtroAtual = 'pendentes';
+    let totalAnterior = 0;
+
+    function corPagamento(forma) {
+      const f = (forma || '').toLowerCase();
+      if (f.includes('pix')) return 'bg-teal-500/20 text-teal-300 border-teal-500/40';
+      if (f.includes('crédito') || f.includes('credito')) return 'bg-purple-500/20 text-purple-300 border-purple-500/40';
+      if (f.includes('débito') || f.includes('debito')) return 'bg-blue-500/20 text-blue-300 border-blue-500/40';
+      return 'bg-amber-500/20 text-amber-300 border-amber-500/40';
+    }
+
+    function formatarValor(v) {
+      if (v === undefined || v === null || v === '') return 'R$ 0,00';
+      const str = String(v).trim();
+      if (str.startsWith('R$')) return str;
+      const num = parseFloat(str.replace(',', '.'));
+      return isNaN(num) ? str : 'R$ ' + num.toFixed(2).replace('.', ',');
+    }
+
+    function alternarEntregue(idUnico) {
+      if (entreguesLocal.includes(idUnico)) {
+        entreguesLocal = entreguesLocal.filter(i => i !== idUnico);
+      } else {
+        entreguesLocal.push(idUnico);
+      }
+      localStorage.setItem('cantina_entregues', JSON.stringify(entreguesLocal));
+      renderizar();
+    }
+
+    function mudarFiltro(novo) {
+      filtroAtual = novo;
+      document.getElementById('btn-pendentes').className = novo === 'pendentes' 
+        ? 'flex-1 sm:flex-none px-4 py-2 rounded-xl bg-red-600 text-white font-bold text-xs shadow-md' 
+        : 'flex-1 sm:flex-none px-4 py-2 rounded-xl bg-[#202024] text-gray-400 font-bold text-xs hover:text-white';
+      
+      document.getElementById('btn-todos').className = novo === 'todos' 
+        ? 'flex-1 sm:flex-none px-4 py-2 rounded-xl bg-red-600 text-white font-bold text-xs shadow-md' 
+        : 'flex-1 sm:flex-none px-4 py-2 rounded-xl bg-[#202024] text-gray-400 font-bold text-xs hover:text-white';
+      renderizar();
+    }
+
+    // Leitura direta e em tempo real da planilha do Google
+    window.google = {
+      visualization: {
+        Query: {
+          setResponse: function(resposta) {
+            if (!resposta || !resposta.table || !resposta.table.rows) return;
+            const linhas = resposta.table.rows;
+            const lista = linhas.map(r => {
+              const c = r.c || [];
+              const val = (idx) => c[idx] ? (c[idx].f || c[idx].v || '') : '';
+              return {
+                data: val(0),
+                numero: val(1),
+                pedido: val(2),
+                valor: val(3),
+                pagamento: val(4),
+                codigo: val(5)
+              };
+            }).filter(p => (p.codigo || p.pedido) && String(p.codigo) !== 'Código de Retirada');
+
+            // Toca alerta sonoro se chegar pedido novo
+            if (totalAnterior > 0 && lista.length > totalAnterior) {
+              document.getElementById('som-alerta').play().catch(() => {});
+            }
+            totalAnterior = lista.length;
+            pedidosAtuais = lista.reverse();
+            renderizar();
+          }
+        }
+      }
+    };
+
+    function carregarPlanilha() {
+      const scriptAntigo = document.getElementById('script-google');
+      if (scriptAntigo) scriptAntigo.remove();
+
+      const s = document.createElement('script');
+      s.id = 'script-google';
+      s.src = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&headers=1&t=${Date.now()}`;
+      document.body.appendChild(s);
+    }
+
+    function renderizar() {
+      const grid = document.getElementById('grid-pedidos');
+      const termo = document.getElementById('busca').value.toLowerCase();
+      let naFila = 0;
+
+      const html = pedidosAtuais.map(p => {
+        const codigo = String(p.codigo || '----');
+        const data = p.data || '';
+        const pedido = p.pedido || 'Sem descrição';
+        const valor = formatarValor(p.valor);
+        const pagamento = p.pagamento || 'A definir';
+        const numero = String(p.numero || '');
+        const idUnico = codigo + '_' + data;
+        const isEntregue = entreguesLocal.includes(idUnico);
+
+        if (!isEntregue) naFila++;
+        if (filtroAtual === 'pendentes' && isEntregue) return '';
+        if (termo && !codigo.toLowerCase().includes(termo) && !pedido.toLowerCase().includes(termo)) return '';
+
+        const numLimpo = numero.replace(/\D/g, '');
+
+        return `
+          <div class="card-pedido ${isEntregue ? 'card-entregue' : ''} rounded-2xl p-4 flex flex-col justify-between shadow-lg">
+            <div>
+              <div class="flex justify-between items-start mb-3">
+                <div>
+                  <span class="text-[10px] uppercase tracking-wider text-gray-400 font-bold">Código de Retirada</span>
+                  <div class="text-3xl font-black text-white tracking-tight leading-none mt-1">#${codigo}</div>
+                </div>
+                <span class="px-2.5 py-1 rounded-lg text-[11px] font-black border ${corPagamento(pagamento)}">
+                  ${pagamento}
+                </span>
+              </div>
+
+              <div class="bg-[#121214] p-3 rounded-xl mb-3 border border-gray-800">
+                <span class="text-[11px] text-gray-400 font-medium block mb-1">
+                  <i class="fas fa-utensils mr-1 text-red-500"></i> Itens do Pedido:
+                </span>
+                <p class="text-sm font-semibold text-gray-100 whitespace-pre-line leading-relaxed">${pedido}</p>
+              </div>
+            </div>
+
+            <div>
+              <div class="flex justify-between items-center text-xs mb-3 pt-2 border-t border-gray-800/80">
+                <div class="text-gray-400">
+                  <div><i class="far fa-clock mr-1"></i> ${data}</div>
+                  ${numero ? `<div class="mt-0.5"><i class="fab fa-whatsapp text-green-500 mr-1"></i> ${numero}</div>` : ''}
+                </div>
+                <div class="text-right">
+                  <span class="text-[10px] text-gray-400 block font-semibold">Total</span>
+                  <span class="text-base font-black text-green-400">${valor}</span>
+                </div>
+              </div>
+
+              <div class="flex gap-2">
+                <button onclick="alternarEntregue('${idUnico}')" 
+                        class="flex-1 py-2.5 rounded-xl font-bold text-xs transition flex items-center justify-center gap-1.5 shadow ${isEntregue ? 'bg-gray-700 text-gray-300' : 'bg-green-600 active:bg-green-700 text-white'}">
+                  <i class="fas ${isEntregue ? 'fa-undo' : 'fa-check'}"></i>
+                  ${isEntregue ? 'Voltar para a Fila' : 'Concluir Pedido'}
+                </button>
+                ${numLimpo ? `
+                  <a href="https://wa.me/${numLimpo.startsWith('55') ? numLimpo : '55'+numLimpo}" target="_blank" 
+                     class="w-10 h-10 bg-[#29292e] active:bg-gray-700 text-green-400 rounded-xl flex items-center justify-center transition shadow" title="WhatsApp">
+                    <i class="fab fa-whatsapp text-base"></i>
+                  </a>` : ''}
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      document.getElementById('contador-pedidos').innerText = naFila;
+      grid.innerHTML = html || `
+        <div class="col-span-full text-center py-20 text-gray-500">
+          <i class="fas fa-concierge-bell text-4xl mb-3 text-gray-600 block"></i>
+          Nenhum pedido pendente na fila.
+        </div>`;
+    }
+
+    // Inicia e atualiza sozinho a cada 4 segundos
+    carregarPlanilha();
+    setInterval(carregarPlanilha, 4000);
+  </script>
+</body>
+</html>
