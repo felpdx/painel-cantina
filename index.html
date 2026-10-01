@@ -32,8 +32,8 @@
       border-left: 6px solid #EA1D2C; 
       transition: all 0.2s ease-in-out; 
     }
-    .card-pedido:active { transform: scale(0.99); }
-    .card-entregue { border-left-color: #00875f; opacity: 0.5; }
+    .card-preparo { border-left-color: #f59e0b; }
+    .card-entregue { border-left-color: #00875f; opacity: 0.55; }
   </style>
 </head>
 <body class="min-h-screen flex flex-col select-none">
@@ -61,8 +61,14 @@
     </div>
   </div>
 
-  <!-- CONTEÚDO DO PAINEL (Só carrega após login) -->
-  <header class="ifood-red text-white px-5 py-3.5 shadow-lg flex justify-between items-center sticky top-0 z-50">
+  <!-- AVISO FLUTUANTE (TOAST) -->
+  <div id="toast" class="fixed bottom-5 right-5 z-50 hidden bg-green-600 text-white px-4 py-3 rounded-xl shadow-2xl text-xs font-bold flex items-center gap-2 transition-all">
+    <i class="fab fa-whatsapp text-base"></i>
+    <span id="toast-msg">Notificação enviada no WhatsApp!</span>
+  </div>
+
+  <!-- CABEÇALHO -->
+  <header class="ifood-red text-white px-5 py-3.5 shadow-lg flex justify-between items-center sticky top-0 z-40">
     <div class="flex items-center gap-3">
       <div class="w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center">
         <i class="fas fa-hamburger text-xl"></i>
@@ -87,6 +93,7 @@
     </div>
   </header>
 
+  <!-- FILTROS E BUSCA -->
   <div class="px-5 pt-4 max-w-6xl mx-auto w-full flex flex-col sm:flex-row gap-3 justify-between items-center">
     <div class="relative w-full sm:w-80">
       <i class="fas fa-search absolute left-3.5 top-3 text-gray-400 text-sm"></i>
@@ -104,6 +111,7 @@
     </div>
   </div>
 
+  <!-- GRADE DE PEDIDOS -->
   <main class="flex-1 p-5 max-w-6xl mx-auto w-full">
     <div id="grid-pedidos" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"></div>
   </main>
@@ -112,16 +120,24 @@
 
   <script>
     // ==========================================
-    // CONFIGURAÇÃO DE SENHA E PLANILHA
+    // CONFIGURAÇÕES PRINCIPAIS
     // ==========================================
-    const SENHA_ACESSO = 'Snack340@'; // <-- Mude aqui para a senha que sua cliente escolher!
+    const SENHA_ACESSO = 'Snack3400';
     const SHEET_ID = '17o6cWNHn4SeyvIZ0rElyQIiZmJqfMl5MyUA1nW9JpVg';
+    const WEBHOOK_WHATS = 'https://webhook.painellipe.online/webhook/avisa-whats';
 
     let pedidosAtuais = [];
-    let entreguesLocal = JSON.parse(localStorage.getItem('cantina_entregues') || '[]');
+    let statusLocal = JSON.parse(localStorage.getItem('cantina_status_pedidos') || '{}');
     let filtroAtual = 'pendentes';
     let totalAnterior = 0;
     let intervaloBusca = null;
+
+    function mostrarToast(texto) {
+      const t = document.getElementById('toast');
+      document.getElementById('toast-msg').innerText = texto;
+      t.classList.remove('hidden');
+      setTimeout(() => t.classList.add('hidden'), 3500);
+    }
 
     function verificarAutenticacao() {
       const logado = localStorage.getItem('cantina_auth') === SENHA_ACESSO;
@@ -176,14 +192,46 @@
       return isNaN(num) ? str : 'R$ ' + num.toFixed(2).replace('.', ',');
     }
 
-    function alternarEntregue(idUnico) {
-      if (entreguesLocal.includes(idUnico)) {
-        entreguesLocal = entreguesLocal.filter(i => i !== idUnico);
-      } else {
-        entreguesLocal.push(idUnico);
+    // Dispara mensagem automática via Webhook do n8n
+    async function enviarAvisoWhats(numeroBruto, codigo, itens, novoStatus) {
+      const numLimpo = String(numeroBruto || '').replace(/\D/g, '');
+      if (!numLimpo) {
+        mostrarToast('Status atualizado (pedido sem telefone)');
+        return;
       }
-      localStorage.setItem('cantina_entregues', JSON.stringify(entreguesLocal));
+      const numFinal = numLimpo.startsWith('55') ? numLimpo : '55' + numLimpo;
+
+      let mensagem = '';
+      if (novoStatus === 'preparo') {
+        mensagem = `👨‍🍳 *SNACK CANTINA*\n\nOlá! Seu pedido *#${codigo}* (${itens}) foi confirmado e já está sendo preparado! Em breve avisaremos quando estiver pronto.`;
+      } else if (novoStatus === 'entregue') {
+        mensagem = `🍔 *SNACK CANTINA*\n\nTudo pronto! Seu pedido *#${codigo}* (${itens}) já pode ser retirado no balcão. Basta informar o seu código *#${codigo}*!`;
+      }
+
+      if (!mensagem) return;
+
+      try {
+        const url = `${WEBHOOK_WHATS}?numero=${encodeURIComponent(numFinal)}&codigo=${encodeURIComponent(codigo)}&status=${encodeURIComponent(novoStatus)}&mensagem=${encodeURIComponent(mensagem)}`;
+        await fetch(url, { method: 'GET', mode: 'no-cors' });
+        mostrarToast(`WhatsApp enviado para #${codigo}!`);
+      } catch (err) {
+        console.error('Erro ao chamar webhook:', err);
+        mostrarToast('Erro ao acionar Webhook do WhatsApp');
+      }
+    }
+
+    function mudarStatusPedido(index, novoStatus) {
+      const p = pedidosAtuais[index];
+      if (!p) return;
+      const idUnico = String(p.codigo || '----') + '_' + (p.data || '');
+      
+      statusLocal[idUnico] = novoStatus;
+      localStorage.setItem('cantina_status_pedidos', JSON.stringify(statusLocal));
       renderizar();
+
+      if (novoStatus === 'preparo' || novoStatus === 'entregue') {
+        enviarAvisoWhats(p.numero, p.codigo, p.pedido, novoStatus);
+      }
     }
 
     function mudarFiltro(novo) {
@@ -244,7 +292,7 @@
       const termo = document.getElementById('busca').value.toLowerCase();
       let naFila = 0;
 
-      const html = pedidosAtuais.map(p => {
+      const html = pedidosAtuais.map((p, idx) => {
         const codigo = String(p.codigo || '----');
         const data = p.data || '';
         const pedido = p.pedido || 'Sem descrição';
@@ -252,20 +300,53 @@
         const pagamento = p.pagamento || 'A definir';
         const numero = String(p.numero || '');
         const idUnico = codigo + '_' + data;
-        const isEntregue = entreguesLocal.includes(idUnico);
+        
+        const estado = statusLocal[idUnico] || 'novo'; // 'novo' | 'preparo' | 'entregue'
+        const isEntregue = estado === 'entregue';
+        const isPreparo = estado === 'preparo';
 
         if (!isEntregue) naFila++;
         if (filtroAtual === 'pendentes' && isEntregue) return '';
         if (termo && !codigo.toLowerCase().includes(termo) && !pedido.toLowerCase().includes(termo)) return '';
 
         const numLimpo = numero.replace(/\D/g, '');
+        const classeCard = isEntregue ? 'card-entregue' : (isPreparo ? 'card-preparo' : '');
+
+        let botoesAcao = '';
+        if (estado === 'novo') {
+          botoesAcao = `
+            <button onclick="mudarStatusPedido(${idx}, 'preparo')" 
+                    class="flex-1 py-2.5 rounded-xl font-bold text-xs transition flex items-center justify-center gap-1.5 shadow bg-amber-500 hover:bg-amber-600 active:scale-95 text-black">
+              <i class="fas fa-fire-burner"></i> Confirmar Preparo
+            </button>`;
+        } else if (estado === 'preparo') {
+          botoesAcao = `
+            <button onclick="mudarStatusPedido(${idx}, 'entregue')" 
+                    class="flex-1 py-2.5 rounded-xl font-bold text-xs transition flex items-center justify-center gap-1.5 shadow bg-green-600 hover:bg-green-500 active:scale-95 text-white">
+              <i class="fas fa-check-circle"></i> Pronto p/ Retirada
+            </button>`;
+        } else {
+          botoesAcao = `
+            <button onclick="mudarStatusPedido(${idx}, 'novo')" 
+                    class="flex-1 py-2.5 rounded-xl font-bold text-xs transition flex items-center justify-center gap-1.5 shadow bg-gray-700 text-gray-300">
+              <i class="fas fa-undo"></i> Voltar p/ Fila
+            </button>`;
+        }
+
+        const badgeEstado = isPreparo 
+          ? `<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30">👨‍🍳 Em Preparo</span>`
+          : (isEntregue ? `<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-green-500/20 text-green-300 border border-green-500/30">✅ Concluído</span>` 
+          : `<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-red-500/20 text-red-300 border border-red-500/30">🔔 Novo</span>`);
 
         return `
-          <div class="card-pedido ${isEntregue ? 'card-entregue' : ''} rounded-2xl p-4 flex flex-col justify-between shadow-lg">
+          <div class="card-pedido ${classeCard} rounded-2xl p-4 flex flex-col justify-between shadow-lg">
             <div>
               <div class="flex justify-between items-start mb-3">
                 <div>
-                  <span class="text-[10px] uppercase tracking-wider text-gray-400 font-bold">Código de Retirada</span>
+                  <div class="flex items-center gap-2">
+                    <span class="text-[10px] uppercase tracking-wider text-gray-400 font-bold">Senha</span>
+                    ${badgeEstado}
+                  </div>
                   <div class="text-3xl font-black text-white tracking-tight leading-none mt-1">#${codigo}</div>
                 </div>
                 <span class="px-2.5 py-1 rounded-lg text-[11px] font-black border ${corPagamento(pagamento)}">
@@ -294,14 +375,10 @@
               </div>
 
               <div class="flex gap-2">
-                <button onclick="alternarEntregue('${idUnico}')" 
-                        class="flex-1 py-2.5 rounded-xl font-bold text-xs transition flex items-center justify-center gap-1.5 shadow ${isEntregue ? 'bg-gray-700 text-gray-300' : 'bg-green-600 active:bg-green-700 text-white'}">
-                  <i class="fas ${isEntregue ? 'fa-undo' : 'fa-check'}"></i>
-                  ${isEntregue ? 'Voltar para a Fila' : 'Concluir Pedido'}
-                </button>
+                ${botoesAcao}
                 ${numLimpo ? `
                   <a href="https://wa.me/${numLimpo.startsWith('55') ? numLimpo : '55'+numLimpo}" target="_blank" 
-                     class="w-10 h-10 bg-[#29292e] active:bg-gray-700 text-green-400 rounded-xl flex items-center justify-center transition shadow" title="WhatsApp">
+                     class="w-10 h-10 bg-[#29292e] active:bg-gray-700 text-green-400 rounded-xl flex items-center justify-center transition shadow" title="Abrir conversa no WhatsApp">
                     <i class="fab fa-whatsapp text-base"></i>
                   </a>` : ''}
               </div>
