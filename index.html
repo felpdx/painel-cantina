@@ -5,8 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>Snack Cantina - Gestor de Pedidos</title>
 
-  <!-- Configurações de Aplicativo Mobile (PWA / Tela Cheia) -->
-  <meta name="theme-color" content="#EA1D2C">
+  <meta name="theme-color" content="#E52521">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -14,104 +13,73 @@
   <link rel="icon" type="image/png" href="https://cdn-icons-png.flaticon.com/512/3075/3075977.png">
   <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/3075/3075977.png">
   
-  <link rel="manifest" href='data:application/manifest+json,{"name":"Snack Cantina","short_name":"Cantina","start_url":".","display":"standalone","background_color":"#121214","theme_color":"#EA1D2C","icons":[{"src":"https://cdn-icons-png.flaticon.com/512/3075/3075977.png","sizes":"512x512","type":"image/png"}]}'>
+  <link rel="manifest" href='data:application/manifest+json,{"name":"Snack Cantina","short_name":"Cantina","start_url":".","display":"standalone","background_color":"#F4E8D1","theme_color":"#E52521","icons":[{"src":"https://cdn-icons-png.flaticon.com/512/3075/3075977.png","sizes":"512x512","type":"image/png"}]}'>
 
   <script src="https://cdn.tailwindcss.com"></script>
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
 
   <style>
     body { 
-      background-color: #121214; 
-      color: #e1e1e6; 
+      background-color: #F4E8D1; 
+      color: #4B1715; 
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
       -webkit-tap-highlight-color: transparent;
     }
-    .ifood-red { background-color: #EA1D2C; }
+    .theme-primary { background-color: #E52521; } 
     .card-pedido { 
-      background-color: #202024; 
-      border-left: 6px solid #EA1D2C; 
+      background-color: #ffffff; 
+      border-left: 6px solid #E52521; 
+      box-shadow: 0 4px 6px -1px rgba(75, 23, 21, 0.1);
       transition: all 0.2s ease-in-out; 
     }
-    .card-preparo { border-left-color: #f59e0b; }
-    .card-entregue { border-left-color: #00875f; opacity: 0.55; }
+    .card-pedido:active { transform: scale(0.99); }
+    .card-entregue { border-left-color: #00875f; opacity: 0.6; background-color: #fafafa; }
   </style>
 </head>
 <body class="min-h-screen flex flex-col select-none">
 
-  <!-- TELA DE LOGIN / BLOQUEIO -->
-  <div id="tela-login" class="fixed inset-0 bg-[#121214] z-[100] flex items-center justify-center p-6">
-    <div class="bg-[#202024] border border-gray-800 rounded-2xl p-6 w-full max-w-sm shadow-2xl text-center">
-      <div class="w-16 h-16 ifood-red rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg">
-        <i class="fas fa-hamburger text-3xl text-white"></i>
-      </div>
-      <h2 class="text-xl font-black text-white">SNACK CANTINA</h2>
-      <p class="text-xs text-gray-400 mt-1 mb-6">Acesso restrito ao Gestor de Pedidos</p>
-
-      <form onsubmit="fazerLogin(event)" class="space-y-4">
-        <div class="relative">
-          <i class="fas fa-lock absolute left-4 top-3.5 text-gray-500 text-sm"></i>
-          <input type="password" id="campo-senha" placeholder="Digite a senha de acesso..." required
-                 class="w-full bg-[#121214] border border-gray-700 rounded-xl pl-10 pr-4 py-3 text-sm text-white focus:outline-none focus:border-red-500 text-center tracking-widest">
-        </div>
-        <p id="erro-login" class="text-xs text-red-500 font-bold hidden">Senha incorreta! Tente novamente.</p>
-        <button type="submit" class="w-full ifood-red hover:bg-red-700 active:scale-95 text-white font-bold py-3 rounded-xl text-sm transition shadow-lg">
-          Entrar no Painel
-        </button>
-      </form>
-    </div>
-  </div>
-
-  <!-- AVISO FLUTUANTE (TOAST) -->
-  <div id="toast" class="fixed bottom-5 right-5 z-50 hidden bg-green-600 text-white px-4 py-3 rounded-xl shadow-2xl text-xs font-bold flex items-center gap-2 transition-all">
-    <i class="fab fa-whatsapp text-base"></i>
-    <span id="toast-msg">Notificação enviada no WhatsApp!</span>
-  </div>
-
-  <!-- CABEÇALHO -->
-  <header class="ifood-red text-white px-5 py-3.5 shadow-lg flex justify-between items-center sticky top-0 z-40">
+  <!-- Cabeçalho Fixo -->
+  <header class="theme-primary text-white px-5 py-3.5 shadow-lg flex justify-between items-center sticky top-0 z-50">
     <div class="flex items-center gap-3">
-      <div class="w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center">
+      <div class="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center">
         <i class="fas fa-hamburger text-xl"></i>
       </div>
       <div>
-        <h1 class="text-lg font-black tracking-wide leading-tight">SNACK CANTINA</h1>
+        <h1 class="text-lg font-black tracking-wide leading-tight">SNACK</h1>
         <span class="text-[11px] opacity-90 block font-medium">Gestor de Pedidos</span>
       </div>
     </div>
 
     <div class="flex items-center gap-2">
-      <div class="bg-black/25 px-3 py-1.5 rounded-full text-xs font-semibold flex items-center gap-2">
-        <span class="w-2 h-2 bg-green-400 rounded-full animate-ping"></span>
+      <div class="bg-black/20 px-3 py-1.5 rounded-full text-xs font-semibold flex items-center gap-2">
+        <span class="w-2 h-2 bg-[#FBAF17] rounded-full animate-ping"></span>
         <span><strong id="contador-pedidos">0</strong> na fila</span>
       </div>
       <button onclick="carregarPlanilha()" class="bg-white/20 active:bg-white/30 text-white w-9 h-9 rounded-full flex items-center justify-center transition" title="Recarregar">
         <i class="fas fa-sync-alt text-xs"></i>
       </button>
-      <button onclick="fazerLogout()" class="bg-black/25 hover:bg-black/40 text-white w-9 h-9 rounded-full flex items-center justify-center transition" title="Bloquear Painel">
-        <i class="fas fa-lock text-xs"></i>
-      </button>
     </div>
   </header>
 
-  <!-- FILTROS E BUSCA -->
+  <!-- Filtros e Busca -->
   <div class="px-5 pt-4 max-w-6xl mx-auto w-full flex flex-col sm:flex-row gap-3 justify-between items-center">
     <div class="relative w-full sm:w-80">
-      <i class="fas fa-search absolute left-3.5 top-3 text-gray-400 text-sm"></i>
-      <input type="text" id="busca" oninput="renderizar()" placeholder="Buscar por código (#) ou item..." 
-             class="w-full bg-[#202024] border border-gray-700/80 rounded-xl pl-10 pr-4 py-2 text-sm focus:outline-none focus:border-red-500 text-white placeholder-gray-500">
+      <i class="fas fa-search absolute left-3.5 top-3 text-[#8A4B4B] text-sm"></i>
+      <input type="text" id="busca" oninput="renderizar()" placeholder="Buscar por nome, # ou item..." 
+             class="w-full bg-white border-2 border-[#E5C398] rounded-xl pl-10 pr-4 py-2 text-sm focus:outline-none focus:border-[#FBAF17] text-[#4B1715] placeholder-[#8A4B4B] shadow-sm">
     </div>
     
     <div class="flex gap-2 w-full sm:w-auto">
-      <button onclick="mudarFiltro('pendentes')" id="btn-pendentes" class="flex-1 sm:flex-none px-4 py-2 rounded-xl bg-red-600 text-white font-bold text-xs shadow-md">
+      <button onclick="mudarFiltro('pendentes')" id="btn-pendentes" class="flex-1 sm:flex-none px-4 py-2 rounded-xl bg-[#E52521] text-white font-bold text-xs shadow-md">
         Na Fila
       </button>
-      <button onclick="mudarFiltro('todos')" id="btn-todos" class="flex-1 sm:flex-none px-4 py-2 rounded-xl bg-[#202024] text-gray-400 font-bold text-xs hover:text-white">
+      <button onclick="mudarFiltro('todos')" id="btn-todos" class="flex-1 sm:flex-none px-4 py-2 rounded-xl bg-white text-[#8A4B4B] border border-[#E5C398] font-bold text-xs hover:text-[#4B1715] shadow-sm">
         Todos os Pedidos
       </button>
     </div>
   </div>
 
-  <!-- GRADE DE PEDIDOS -->
+  <!-- Lista / Grade de Pedidos -->
   <main class="flex-1 p-5 max-w-6xl mx-auto w-full">
     <div id="grid-pedidos" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"></div>
   </main>
@@ -119,69 +87,19 @@
   <audio id="som-alerta" src="https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3" preload="auto"></audio>
 
   <script>
-    // ==========================================
-    // CONFIGURAÇÕES PRINCIPAIS
-    // ==========================================
-    const SENHA_ACESSO = 'Snack3400';
     const SHEET_ID = '17o6cWNHn4SeyvIZ0rElyQIiZmJqfMl5MyUA1nW9JpVg';
-    const WEBHOOK_WHATS = 'https://webhook.painellipe.online/webhook/avisa-whats';
 
     let pedidosAtuais = [];
-    let statusLocal = JSON.parse(localStorage.getItem('cantina_status_pedidos') || '{}');
+    let entreguesLocal = JSON.parse(localStorage.getItem('cantina_entregues') || '[]');
     let filtroAtual = 'pendentes';
     let totalAnterior = 0;
-    let intervaloBusca = null;
-
-    function mostrarToast(texto) {
-      const t = document.getElementById('toast');
-      document.getElementById('toast-msg').innerText = texto;
-      t.classList.remove('hidden');
-      setTimeout(() => t.classList.add('hidden'), 3500);
-    }
-
-    function verificarAutenticacao() {
-      const logado = localStorage.getItem('cantina_auth') === SENHA_ACESSO;
-      if (logado) {
-        document.getElementById('tela-login').classList.add('hidden');
-        iniciarPainel();
-      } else {
-        document.getElementById('tela-login').classList.remove('hidden');
-      }
-    }
-
-    function fazerLogin(e) {
-      e.preventDefault();
-      const digitada = document.getElementById('campo-senha').value.trim();
-      if (digitada === SENHA_ACESSO) {
-        localStorage.setItem('cantina_auth', SENHA_ACESSO);
-        document.getElementById('erro-login').classList.add('hidden');
-        document.getElementById('campo-senha').value = '';
-        verificarAutenticacao();
-      } else {
-        document.getElementById('erro-login').classList.remove('hidden');
-      }
-    }
-
-    function fazerLogout() {
-      localStorage.removeItem('cantina_auth');
-      if (intervaloBusca) clearInterval(intervaloBusca);
-      pedidosAtuais = [];
-      document.getElementById('grid-pedidos').innerHTML = '';
-      verificarAutenticacao();
-    }
-
-    function iniciarPainel() {
-      carregarPlanilha();
-      if (intervaloBusca) clearInterval(intervaloBusca);
-      intervaloBusca = setInterval(carregarPlanilha, 4000);
-    }
 
     function corPagamento(forma) {
       const f = (forma || '').toLowerCase();
-      if (f.includes('pix')) return 'bg-teal-500/20 text-teal-300 border-teal-500/40';
-      if (f.includes('crédito') || f.includes('credito')) return 'bg-purple-500/20 text-purple-300 border-purple-500/40';
-      if (f.includes('débito') || f.includes('debito')) return 'bg-blue-500/20 text-blue-300 border-blue-500/40';
-      return 'bg-amber-500/20 text-amber-300 border-amber-500/40';
+      if (f.includes('pix')) return 'bg-teal-100 text-teal-800 border-teal-300';
+      if (f.includes('crédito') || f.includes('credito')) return 'bg-purple-100 text-purple-800 border-purple-300';
+      if (f.includes('débito') || f.includes('debito')) return 'bg-blue-100 text-blue-800 border-blue-300';
+      return 'bg-[#FBAF17]/20 text-[#4B1715] border-[#FBAF17]/50';
     }
 
     function formatarValor(v) {
@@ -192,57 +110,25 @@
       return isNaN(num) ? str : 'R$ ' + num.toFixed(2).replace('.', ',');
     }
 
-    // Dispara mensagem automática via Webhook do n8n
-    async function enviarAvisoWhats(numeroBruto, codigo, itens, novoStatus) {
-      const numLimpo = String(numeroBruto || '').replace(/\D/g, '');
-      if (!numLimpo) {
-        mostrarToast('Status atualizado (pedido sem telefone)');
-        return;
+    function alternarEntregue(idUnico) {
+      if (entreguesLocal.includes(idUnico)) {
+        entreguesLocal = entreguesLocal.filter(i => i !== idUnico);
+      } else {
+        entreguesLocal.push(idUnico);
       }
-      const numFinal = numLimpo.startsWith('55') ? numLimpo : '55' + numLimpo;
-
-      let mensagem = '';
-      if (novoStatus === 'preparo') {
-        mensagem = `👨‍🍳 *SNACK CANTINA*\n\nOlá! Seu pedido *#${codigo}* (${itens}) foi confirmado e já está sendo preparado! Em breve avisaremos quando estiver pronto.`;
-      } else if (novoStatus === 'entregue') {
-        mensagem = `🍔 *SNACK CANTINA*\n\nTudo pronto! Seu pedido *#${codigo}* (${itens}) já pode ser retirado no balcão. Basta informar o seu código *#${codigo}*!`;
-      }
-
-      if (!mensagem) return;
-
-      try {
-        const url = `${WEBHOOK_WHATS}?numero=${encodeURIComponent(numFinal)}&codigo=${encodeURIComponent(codigo)}&status=${encodeURIComponent(novoStatus)}&mensagem=${encodeURIComponent(mensagem)}`;
-        await fetch(url, { method: 'GET', mode: 'no-cors' });
-        mostrarToast(`WhatsApp enviado para #${codigo}!`);
-      } catch (err) {
-        console.error('Erro ao chamar webhook:', err);
-        mostrarToast('Erro ao acionar Webhook do WhatsApp');
-      }
-    }
-
-    function mudarStatusPedido(index, novoStatus) {
-      const p = pedidosAtuais[index];
-      if (!p) return;
-      const idUnico = String(p.codigo || '----') + '_' + (p.data || '');
-      
-      statusLocal[idUnico] = novoStatus;
-      localStorage.setItem('cantina_status_pedidos', JSON.stringify(statusLocal));
+      localStorage.setItem('cantina_entregues', JSON.stringify(entreguesLocal));
       renderizar();
-
-      if (novoStatus === 'preparo' || novoStatus === 'entregue') {
-        enviarAvisoWhats(p.numero, p.codigo, p.pedido, novoStatus);
-      }
     }
 
     function mudarFiltro(novo) {
       filtroAtual = novo;
       document.getElementById('btn-pendentes').className = novo === 'pendentes' 
-        ? 'flex-1 sm:flex-none px-4 py-2 rounded-xl bg-red-600 text-white font-bold text-xs shadow-md' 
-        : 'flex-1 sm:flex-none px-4 py-2 rounded-xl bg-[#202024] text-gray-400 font-bold text-xs hover:text-white';
+        ? 'flex-1 sm:flex-none px-4 py-2 rounded-xl bg-[#E52521] text-white font-bold text-xs shadow-md' 
+        : 'flex-1 sm:flex-none px-4 py-2 rounded-xl bg-white text-[#8A4B4B] border border-[#E5C398] font-bold text-xs hover:text-[#4B1715] shadow-sm';
       
       document.getElementById('btn-todos').className = novo === 'todos' 
-        ? 'flex-1 sm:flex-none px-4 py-2 rounded-xl bg-red-600 text-white font-bold text-xs shadow-md' 
-        : 'flex-1 sm:flex-none px-4 py-2 rounded-xl bg-[#202024] text-gray-400 font-bold text-xs hover:text-white';
+        ? 'flex-1 sm:flex-none px-4 py-2 rounded-xl bg-[#E52521] text-white font-bold text-xs shadow-md' 
+        : 'flex-1 sm:flex-none px-4 py-2 rounded-xl bg-white text-[#8A4B4B] border border-[#E5C398] font-bold text-xs hover:text-[#4B1715] shadow-sm';
       renderizar();
     }
 
@@ -261,7 +147,8 @@
                 pedido: val(2),
                 valor: val(3),
                 pagamento: val(4),
-                codigo: val(5)
+                codigo: val(5),
+                nome: val(7) // CORRIGIDO: Lendo a 8ª coluna (Coluna H)
               };
             }).filter(p => (p.codigo || p.pedido) && String(p.codigo) !== 'Código de Retirada');
 
@@ -277,7 +164,6 @@
     };
 
     function carregarPlanilha() {
-      if (localStorage.getItem('cantina_auth') !== SENHA_ACESSO) return;
       const scriptAntigo = document.getElementById('script-google');
       if (scriptAntigo) scriptAntigo.remove();
 
@@ -292,93 +178,66 @@
       const termo = document.getElementById('busca').value.toLowerCase();
       let naFila = 0;
 
-      const html = pedidosAtuais.map((p, idx) => {
+      const html = pedidosAtuais.map(p => {
         const codigo = String(p.codigo || '----');
         const data = p.data || '';
         const pedido = p.pedido || 'Sem descrição';
         const valor = formatarValor(p.valor);
         const pagamento = p.pagamento || 'A definir';
         const numero = String(p.numero || '');
+        const nome = String(p.nome || ''); 
         const idUnico = codigo + '_' + data;
-        
-        const estado = statusLocal[idUnico] || 'novo'; // 'novo' | 'preparo' | 'entregue'
-        const isEntregue = estado === 'entregue';
-        const isPreparo = estado === 'preparo';
+        const isEntregue = entreguesLocal.includes(idUnico);
 
         if (!isEntregue) naFila++;
         if (filtroAtual === 'pendentes' && isEntregue) return '';
-        if (termo && !codigo.toLowerCase().includes(termo) && !pedido.toLowerCase().includes(termo)) return '';
+        if (termo && !codigo.toLowerCase().includes(termo) && !pedido.toLowerCase().includes(termo) && !nome.toLowerCase().includes(termo)) return '';
 
         const numLimpo = numero.replace(/\D/g, '');
-        const classeCard = isEntregue ? 'card-entregue' : (isPreparo ? 'card-preparo' : '');
-
-        let botoesAcao = '';
-        if (estado === 'novo') {
-          botoesAcao = `
-            <button onclick="mudarStatusPedido(${idx}, 'preparo')" 
-                    class="flex-1 py-2.5 rounded-xl font-bold text-xs transition flex items-center justify-center gap-1.5 shadow bg-amber-500 hover:bg-amber-600 active:scale-95 text-black">
-              <i class="fas fa-fire-burner"></i> Confirmar Preparo
-            </button>`;
-        } else if (estado === 'preparo') {
-          botoesAcao = `
-            <button onclick="mudarStatusPedido(${idx}, 'entregue')" 
-                    class="flex-1 py-2.5 rounded-xl font-bold text-xs transition flex items-center justify-center gap-1.5 shadow bg-green-600 hover:bg-green-500 active:scale-95 text-white">
-              <i class="fas fa-check-circle"></i> Pronto p/ Retirada
-            </button>`;
-        } else {
-          botoesAcao = `
-            <button onclick="mudarStatusPedido(${idx}, 'novo')" 
-                    class="flex-1 py-2.5 rounded-xl font-bold text-xs transition flex items-center justify-center gap-1.5 shadow bg-gray-700 text-gray-300">
-              <i class="fas fa-undo"></i> Voltar p/ Fila
-            </button>`;
-        }
-
-        const badgeEstado = isPreparo 
-          ? `<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30">👨‍🍳 Em Preparo</span>`
-          : (isEntregue ? `<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-green-500/20 text-green-300 border border-green-500/30">✅ Concluído</span>` 
-          : `<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-red-500/20 text-red-300 border border-red-500/30">🔔 Novo</span>`);
 
         return `
-          <div class="card-pedido ${classeCard} rounded-2xl p-4 flex flex-col justify-between shadow-lg">
+          <div class="card-pedido ${isEntregue ? 'card-entregue' : ''} rounded-2xl p-4 flex flex-col justify-between">
             <div>
               <div class="flex justify-between items-start mb-3">
                 <div>
-                  <div class="flex items-center gap-2">
-                    <span class="text-[10px] uppercase tracking-wider text-gray-400 font-bold">Senha</span>
-                    ${badgeEstado}
-                  </div>
-                  <div class="text-3xl font-black text-white tracking-tight leading-none mt-1">#${codigo}</div>
+                  <span class="text-[10px] uppercase tracking-wider text-[#8A4B4B] font-bold">Código de Retirada</span>
+                  <div class="text-3xl font-black text-[#4B1715] tracking-tight leading-none mt-1">#${codigo}</div>
                 </div>
                 <span class="px-2.5 py-1 rounded-lg text-[11px] font-black border ${corPagamento(pagamento)}">
                   ${pagamento}
                 </span>
               </div>
 
-              <div class="bg-[#121214] p-3 rounded-xl mb-3 border border-gray-800">
-                <span class="text-[11px] text-gray-400 font-medium block mb-1">
-                  <i class="fas fa-utensils mr-1 text-red-500"></i> Itens do Pedido:
+              <div class="bg-[#F4E8D1]/50 p-3 rounded-xl mb-3 border border-[#E5C398]">
+                <span class="text-[11px] text-[#8A4B4B] font-medium block mb-1">
+                  <i class="fas fa-utensils mr-1 text-[#E52521]"></i> Itens do Pedido:
                 </span>
-                <p class="text-sm font-semibold text-gray-100 whitespace-pre-line leading-relaxed">${pedido}</p>
+                <p class="text-sm font-semibold text-[#4B1715] whitespace-pre-line leading-relaxed">${pedido}</p>
               </div>
             </div>
 
             <div>
-              <div class="flex justify-between items-center text-xs mb-3 pt-2 border-t border-gray-800/80">
-                <div class="text-gray-400">
+              <div class="flex justify-between items-end text-xs mb-3 pt-2 border-t border-[#E5C398]">
+                <div class="text-[#8A4B4B]">
+                  ${nome ? `<div class="mb-1 text-sm font-bold text-[#E52521]"><i class="fas fa-user mr-1"></i> ${nome}</div>` : ''}
                   <div><i class="far fa-clock mr-1"></i> ${data}</div>
-                  ${numero ? `<div class="mt-0.5"><i class="fab fa-whatsapp text-green-500 mr-1"></i> ${numero}</div>` : ''}
+                  ${numero ? `<div class="mt-0.5"><i class="fab fa-whatsapp text-green-600 mr-1"></i> ${numero}</div>` : ''}
                 </div>
                 <div class="text-right">
-                  <span class="text-[10px] text-gray-400 block font-semibold">Total</span>
-                  <span class="text-base font-black text-green-400">${valor}</span>
+                  <span class="text-[10px] text-[#8A4B4B] block font-semibold">Total</span>
+                  <span class="text-base font-black text-[#E52521]">${valor}</span>
                 </div>
               </div>
 
               <div class="flex gap-2">
-                ${botoesAcao}
+                <button onclick="alternarEntregue('${idUnico}')" 
+                        class="flex-1 py-2.5 rounded-xl font-bold text-xs transition flex items-center justify-center gap-1.5 shadow-sm ${isEntregue ? 'bg-gray-200 text-gray-500' : 'bg-[#FBAF17] active:bg-[#e09d14] text-[#4B1715]'}">
+                  <i class="fas ${isEntregue ? 'fa-undo' : 'fa-check'}"></i>
+                  ${isEntregue ? 'Voltar para a Fila' : 'Concluir Pedido'}
+                </button>
                 ${numLimpo ? `
                   <a href="https://wa.me/${numLimpo.startsWith('55') ? numLimpo : '55'+numLimpo}" target="_blank" 
-                     class="w-10 h-10 bg-[#29292e] active:bg-gray-700 text-green-400 rounded-xl flex items-center justify-center transition shadow" title="Abrir conversa no WhatsApp">
+                     class="w-10 h-10 bg-white border border-[#E5C398] active:bg-gray-50 text-green-600 rounded-xl flex items-center justify-center transition shadow-sm" title="WhatsApp">
                     <i class="fab fa-whatsapp text-base"></i>
                   </a>` : ''}
               </div>
@@ -389,13 +248,14 @@
 
       document.getElementById('contador-pedidos').innerText = naFila;
       grid.innerHTML = html || `
-        <div class="col-span-full text-center py-20 text-gray-500">
-          <i class="fas fa-concierge-bell text-4xl mb-3 text-gray-600 block"></i>
+        <div class="col-span-full text-center py-20 text-[#8A4B4B]">
+          <i class="fas fa-concierge-bell text-4xl mb-3 text-[#E5C398] block"></i>
           Nenhum pedido pendente na fila.
         </div>`;
     }
 
-    verificarAutenticacao();
+    carregarPlanilha();
+    setInterval(carregarPlanilha, 4000);
   </script>
 </body>
 </html>
