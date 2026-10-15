@@ -5,101 +5,407 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>Snack Cantina - Gestor de Pedidos</title>
 
-  <meta name="theme-color" content="#E52521">
+  <meta name="theme-color" content="#4B1715">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Snack Cantina">
   <link rel="icon" type="image/png" href="https://cdn-icons-png.flaticon.com/512/3075/3075977.png">
   <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/3075/3075977.png">
-  
-  <link rel="manifest" href='data:application/manifest+json,{"name":"Snack Cantina","short_name":"Cantina","start_url":".","display":"standalone","background_color":"#F4E8D1","theme_color":"#E52521","icons":[{"src":"https://cdn-icons-png.flaticon.com/512/3075/3075977.png","sizes":"512x512","type":"image/png"}]}'>
+
+  <link rel="manifest" href='data:application/manifest+json,{"name":"Snack Cantina","short_name":"Cantina","start_url":".","display":"standalone","background_color":"#F4E8D1","theme_color":"#4B1715","icons":[{"src":"https://cdn-icons-png.flaticon.com/512/3075/3075977.png","sizes":"512x512","type":"image/png"}]}'>
 
   <script src="https://cdn.tailwindcss.com"></script>
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+  <script src="config.js"></script>
 
   <style>
-    body { 
-      background-color: #F4E8D1; 
-      color: #4B1715; 
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    /* ------------------------------------------------------------
+       REDESIGN do gestor de pedidos. Só aparência: a lógica (planilha,
+       n8n, status, itens) é a mesma do PainelCantinaNovo.html.
+       Ideia: cada pedido é uma comanda de papel presa no varal da cozinha.
+       Sem fontes externas: o projeto é vanilla e não adiciona CDN novo.
+       ------------------------------------------------------------ */
+    :root {
+      --creme: #F4E8D1;
+      --papel: #FFFBF2;
+      --vermelho: #E52521;
+      --mostarda: #FBAF17;
+      --mostarda-escura: #d99207;
+      --marrom: #4B1715;
+      --marrom-suave: #8A4B4B;
+      --linha: #E5C398;
+      --verde: #1b7a4b;
+      --laranja: #d9650b;
+      --cinza: #9a8b7a;
+
+      --altura-topo: 68px;
+      --f-titulo: Rockwell, "Rockwell Nova", "Roboto Slab", Cambria, Georgia, serif;
+      --f-texto: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      --f-recibo: ui-monospace, "Cascadia Mono", "SF Mono", Consolas, "Liberation Mono", monospace;
+    }
+
+    body {
+      background-color: var(--creme);
+      /* Retícula de pontos bem sutil, como papel de impressão antigo */
+      background-image: radial-gradient(rgba(75, 23, 21, .07) 1px, transparent 1.3px);
+      background-size: 14px 14px;
+      color: var(--marrom);
+      font-family: var(--f-texto);
       -webkit-tap-highlight-color: transparent;
     }
-    .theme-primary { background-color: #E52521; } 
-    .card-pedido { 
-      background-color: #ffffff; 
-      border-left: 6px solid #E52521; 
-      box-shadow: 0 4px 6px -1px rgba(75, 23, 21, 0.1);
-      transition: all 0.2s ease-in-out; 
+
+    :focus-visible { outline: 3px solid var(--mostarda); outline-offset: 2px; }
+
+    /* ---------- Topo ---------- */
+    .topo {
+      position: sticky; top: 0; z-index: 50;
+      height: var(--altura-topo);
+      background: var(--marrom);
+      color: var(--creme);
+      padding: 0 16px 6px;
+      display: flex; align-items: center; justify-content: space-between;
     }
-    .card-pedido:active { transform: scale(0.99); }
-    .card-entregue { border-left-color: #00875f; opacity: 0.6; background-color: #fafafa; }
+    /* Listra de toldo: identifica a cantina e separa o topo do conteúdo */
+    .topo::after {
+      content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 6px;
+      background: repeating-linear-gradient(90deg, var(--vermelho) 0 22px, var(--creme) 22px 44px);
+    }
+    .marca { display: flex; align-items: center; gap: 12px; min-width: 0; }
+    .marca-selo {
+      width: 40px; height: 40px; flex: none;
+      border-radius: 50%;
+      background: var(--vermelho);
+      border: 2px solid var(--mostarda);
+      color: var(--creme);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.05rem;
+    }
+    .marca-nome { font-family: var(--f-titulo); font-weight: 800; font-size: 1.45rem; line-height: 1; letter-spacing: .02em; }
+    .marca-sub { display: block; font-size: .75rem; color: var(--linha); margin-top: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+    .acoes-topo { display: flex; gap: 8px; }
+    .btn-topo {
+      width: 44px; height: 44px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      background: transparent; color: var(--creme);
+      border: 2px solid rgba(244, 232, 209, .35);
+      transition: background-color .15s, border-color .15s;
+    }
+    .btn-topo:hover { border-color: var(--mostarda); }
+    .btn-topo:active { background: rgba(244, 232, 209, .18); }
+
+    /* ---------- Busca ---------- */
+    .busca-campo {
+      width: 100%;
+      background: var(--papel);
+      border: 2px solid var(--marrom);
+      border-radius: 12px;
+      padding: 10px 14px 10px 40px;
+      font-size: .95rem; color: var(--marrom);
+    }
+    .busca-campo::placeholder { color: var(--marrom-suave); }
+    .busca-campo:focus { outline: none; box-shadow: 0 0 0 3px var(--mostarda); }
+
+    /* ---------- Régua de etapas (substitui as abas) ---------- */
+    .trilho {
+      position: sticky; top: var(--altura-topo); z-index: 40;
+      background: var(--creme);
+      padding: 12px 16px 10px;
+    }
+    .etapas {
+      display: grid; grid-template-columns: repeat(4, 1fr);
+      background: var(--papel);
+      border: 2px solid var(--marrom);
+      border-radius: 14px;
+      overflow: hidden;
+      box-shadow: 0 3px 0 var(--marrom);
+    }
+    .aba {
+      position: relative;
+      padding: 9px 2px 12px;
+      background: transparent; color: var(--marrom-suave);
+      font-size: .74rem; font-weight: 700; line-height: 1.2;
+      border-left: 1px solid var(--linha);
+      transition: background-color .15s, color .15s;
+    }
+    .aba:first-child { border-left: 0; }
+    .aba .qtd { display: block; font-family: var(--f-titulo); font-size: 1.55rem; font-weight: 800; line-height: 1.05; color: var(--marrom); }
+    /* Faixa na cor da etapa: a mesma cor do canhoto da comanda */
+    .aba::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 5px; background: var(--cor-etapa); }
+    .aba-recebido   { --cor-etapa: var(--vermelho); }
+    .aba-em_preparo { --cor-etapa: var(--laranja); }
+    .aba-pronto     { --cor-etapa: var(--verde); }
+    .aba-retirado   { --cor-etapa: var(--cinza); }
+    .aba.ativa { background: var(--marrom); color: var(--creme); }
+    .aba.ativa .qtd { color: var(--mostarda); }
+    /* Pedido novo chegou enquanto a funcionária olhava outra etapa */
+    .aba.alerta:not(.ativa) { animation: piscar 1s ease-in-out infinite; }
+    @keyframes piscar { 50% { background: var(--mostarda); } }
+
+    /* ---------- Comanda ---------- */
+    .grade { align-items: start; }
+    .ticket {
+      position: relative;
+      /* drop-shadow (e não box-shadow) para a sombra acompanhar a borda serrilhada */
+      filter: drop-shadow(0 1px 0 rgba(75, 23, 21, .25)) drop-shadow(0 6px 8px rgba(75, 23, 21, .12));
+      transition: transform .12s;
+    }
+    .ticket:active { transform: scale(.99); }
+    .ticket-papel { background: var(--papel); border-radius: 12px 12px 0 0; }
+    .ticket-serra {
+      height: 9px;
+      background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='18' height='9'%3E%3Cpath d='M0 0h18L9 9z' fill='%23FFFBF2'/%3E%3C/svg%3E") repeat-x left top;
+    }
+
+    /* Canhoto: código e etapa */
+    .ticket-topo {
+      display: flex; align-items: center; justify-content: space-between; gap: 8px;
+      padding: 10px 14px;
+      border-radius: 12px 12px 0 0;
+      background: var(--cor-etapa); color: #fff;
+    }
+    .ticket-cod { font-family: var(--f-titulo); font-weight: 800; font-size: 1.55rem; line-height: 1; letter-spacing: .02em; }
+    .st-recebido  { --cor-etapa: var(--vermelho); }
+    .st-preparo   { --cor-etapa: var(--laranja); }
+    .st-pronto    { --cor-etapa: var(--verde); }
+    .st-retirado  { --cor-etapa: var(--cinza); }
+    .tag-etapa {
+      padding: 3px 10px; border-radius: 999px;
+      font-size: .74rem; font-weight: 800;
+      background: rgba(255, 255, 255, .22); color: #fff;
+      border: 1.5px solid rgba(255, 255, 255, .6);
+    }
+
+    /* Picote entre o canhoto e o pedido, com os dois furos laterais */
+    .ticket-corte { position: relative; border-top: 2px dashed var(--linha); }
+    .ticket-corte::before, .ticket-corte::after {
+      content: ""; position: absolute; top: -9px;
+      width: 16px; height: 16px; border-radius: 50%;
+      background: var(--creme);
+    }
+    .ticket-corte::before { left: -8px; }
+    .ticket-corte::after { right: -8px; }
+
+    .ticket-corpo { padding: 12px 14px 14px; }
+    .ticket-nome { font-family: var(--f-titulo); font-weight: 800; font-size: 1.12rem; line-height: 1.2; color: var(--marrom); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .ticket-nome i { color: var(--vermelho); font-size: .75rem; margin-right: 6px; }
+    .itens-card {
+      display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;
+      font-family: var(--f-recibo); font-size: .86rem; font-weight: 600; line-height: 1.5;
+      white-space: pre-line; margin-top: 8px; color: var(--marrom);
+    }
+
+    .ticket-pagamento { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
+    .tag {
+      display: inline-flex; align-items: center; gap: 4px;
+      padding: 2px 9px; border-radius: 6px; border: 1.5px solid;
+      font-size: .75rem; font-weight: 800;
+    }
+    .pg-pix     { background: #ccfbf1; color: #115e59; border-color: #5eead4; }
+    .pg-credito { background: #f3e8ff; color: #6b21a8; border-color: #d8b4fe; }
+    .pg-debito  { background: #dbeafe; color: #1e40af; border-color: #93c5fd; }
+    .pg-padrao  { background: rgba(251, 175, 23, .22); color: var(--marrom); border-color: var(--mostarda); }
+    .pg-pendente { background: #f0fdfa; color: #115e59; border-color: #5eead4; }
+
+    /* Total com pontilhado, como no recibo */
+    .ticket-total { display: flex; align-items: baseline; gap: 8px; margin-top: 12px; }
+    .ticket-total-rotulo { font-size: .85rem; font-weight: 700; color: var(--marrom-suave); }
+    .ticket-total-pontos { flex: 1; border-bottom: 2px dotted var(--linha); transform: translateY(-4px); }
+    .ticket-total-valor { font-family: var(--f-titulo); font-weight: 800; font-size: 1.45rem; line-height: 1; color: var(--vermelho); white-space: nowrap; }
+
+    /* Botões com relevo: dá para sentir o toque, mesmo com a mão suja de cozinha */
+    .acoes { display: flex; gap: 8px; margin-top: 14px; }
+    .btn-principal, .btn-pix, .btn-mais, .btn-salvar, .btn-item, .menu-acao {
+      min-height: 48px; border-radius: 12px; font-weight: 800; font-size: .92rem;
+      display: flex; align-items: center; justify-content: center; gap: 8px;
+      border: 2px solid var(--marrom);
+      transition: transform .08s, box-shadow .08s;
+    }
+    .btn-principal { flex: 1; background: var(--mostarda); color: var(--marrom); box-shadow: 0 3px 0 var(--marrom); }
+    .btn-pix { width: 100%; margin-top: 8px; background: #0f766e; color: #fff; box-shadow: 0 3px 0 var(--marrom); }
+    .btn-mais { width: 48px; background: var(--papel); color: var(--marrom); box-shadow: 0 3px 0 var(--marrom); }
+    .btn-principal:active, .btn-pix:active, .btn-mais:active, .btn-salvar:active { transform: translateY(3px); box-shadow: 0 0 0 var(--marrom); }
+    .btn-mais[aria-expanded="true"] { background: var(--marrom); color: var(--creme); }
+    .btn-concluido { flex: 1; min-height: 48px; border-radius: 12px; border: 2px dashed var(--cinza); color: var(--marrom-suave); font-weight: 800; font-size: .92rem; display: flex; align-items: center; justify-content: center; gap: 8px; }
+    .btn-busy { opacity: .55; pointer-events: none; }
+
+    /* Menu "⋯": horário, WhatsApp e voltar etapa */
+    .menu-card { display: none; }
+    .menu-card.aberto { display: block; }
+    .ticket-menu { margin-top: 12px; padding-top: 12px; border-top: 2px dashed var(--linha); font-size: .8rem; color: var(--marrom-suave); }
+    .menu-acoes { display: flex; gap: 8px; margin-top: 10px; }
+    .menu-acao { flex: 1; min-height: 44px; background: var(--papel); color: var(--marrom); font-size: .82rem; border-width: 1.5px; border-color: var(--linha); }
+    .menu-acao-zap { color: #15803d; }
+
+    /* Vazio: pede para esperar, sem enfeite extra */
+    .vazio { text-align: center; padding: 64px 16px; color: var(--marrom-suave); font-weight: 600; }
+    .vazio i { display: block; font-size: 2.6rem; margin-bottom: 12px; color: var(--linha); }
+
+    /* ---------- Itens do cardápio ---------- */
+    .cat-titulo {
+      font-family: var(--f-titulo); font-weight: 800; font-size: 1.25rem; color: var(--marrom);
+      margin: 22px 0 10px; padding-bottom: 6px;
+      border-bottom: 3px double var(--linha);
+    }
+    .item {
+      background: var(--papel);
+      border: 2px solid var(--marrom);
+      border-left-width: 8px;
+      border-radius: 14px;
+      padding: 12px 14px;
+      box-shadow: 0 3px 0 rgba(75, 23, 21, .85);
+    }
+    .item-ok  { border-left-color: var(--verde); }
+    .item-off { border-left-color: var(--vermelho); background: #fff3ee; }
+    .item-nome { min-width: 0; font-family: var(--f-titulo); font-weight: 800; font-size: 1.05rem; color: var(--marrom); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .item-off .item-nome { color: var(--marrom-suave); text-decoration: line-through; }
+    .tag-esgotado { background: #fee2e2; color: #991b1b; border-color: #fca5a5; flex: none; }
+    .item-preco { display: flex; gap: 8px; margin-top: 12px; }
+    .campo-preco { position: relative; flex: 1; }
+    .campo-preco span { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); font-size: .9rem; font-weight: 800; color: var(--marrom-suave); }
+    .campo-preco input {
+      width: 100%; min-height: 48px;
+      background: #fff; border: 2px solid var(--marrom); border-radius: 12px;
+      padding: 0 12px 0 40px; font-family: var(--f-recibo); font-size: 1rem; font-weight: 700; color: var(--marrom);
+    }
+    .campo-preco input:focus { outline: none; box-shadow: 0 0 0 3px var(--mostarda); }
+    .btn-salvar { padding: 0 18px; background: var(--mostarda); color: var(--marrom); box-shadow: 0 3px 0 var(--marrom); }
+    .btn-item { width: 100%; margin-top: 10px; min-height: 44px; font-size: .85rem; border-width: 2px; background: var(--papel); }
+    .btn-item-esgotar { border-color: #b91c1c; color: #b91c1c; }
+    .btn-item-voltar  { border-color: var(--verde); color: #fff; background: var(--verde); }
+
+    /* ---------- Aviso ---------- */
+    #toast {
+      position: fixed; left: 50%; bottom: 20px; transform: translate(-50%, 140px);
+      background: var(--marrom); color: var(--creme);
+      border-left: 6px solid var(--mostarda);
+      padding: 12px 18px; border-radius: 12px; font-size: .92rem; font-weight: 700;
+      box-shadow: 0 8px 20px rgba(75, 23, 21, .3);
+      transition: transform .25s; z-index: 60; max-width: 90vw;
+    }
+    #toast.show { transform: translate(-50%, 0); }
+
+    @media (min-width: 768px) {
+      .topo { padding-left: max(24px, calc((100vw - 72rem) / 2 + 16px)); padding-right: max(24px, calc((100vw - 72rem) / 2 + 16px)); }
+      .aba { font-size: .85rem; padding-top: 11px; }
+      .aba .qtd { font-size: 1.8rem; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .aba.alerta:not(.ativa) { animation: none; background: var(--mostarda); }
+      .ticket, .btn-principal, .btn-pix, .btn-mais, .btn-salvar, #toast { transition: none; }
+    }
   </style>
 </head>
 <body class="min-h-screen flex flex-col select-none">
 
   <!-- Cabeçalho Fixo -->
-  <header class="theme-primary text-white px-5 py-3.5 shadow-lg flex justify-between items-center sticky top-0 z-50">
-    <div class="flex items-center gap-3">
-      <div class="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center">
-        <i class="fas fa-hamburger text-xl"></i>
+  <header class="topo">
+    <div class="marca">
+      <div class="marca-selo">
+        <i class="fas fa-hamburger"></i>
       </div>
-      <div>
-        <h1 class="text-lg font-black tracking-wide leading-tight">SNACK</h1>
-        <span class="text-[11px] opacity-90 block font-medium">Gestor de Pedidos</span>
+      <div class="min-w-0">
+        <h1 class="marca-nome">Snack</h1>
+        <span id="subtitulo" class="marca-sub">Gestor de Pedidos</span>
       </div>
     </div>
 
-    <div class="flex items-center gap-2">
-      <div class="bg-black/20 px-3 py-1.5 rounded-full text-xs font-semibold flex items-center gap-2">
-        <span class="w-2 h-2 bg-[#FBAF17] rounded-full animate-ping"></span>
-        <span><strong id="contador-pedidos">0</strong> na fila</span>
-      </div>
-      <button onclick="carregarPlanilha()" class="bg-white/20 active:bg-white/30 text-white w-9 h-9 rounded-full flex items-center justify-center transition" title="Recarregar">
+    <div class="acoes-topo">
+      <button onclick="alternarVisao()" id="btn-visao" class="btn-topo" title="Itens do cardápio" aria-label="Itens do cardápio">
+        <i class="fas fa-utensils text-xs"></i>
+      </button>
+      <button id="btn-busca" onclick="alternarBusca()" class="btn-topo" title="Buscar" aria-label="Buscar">
+        <i class="fas fa-search text-xs"></i>
+      </button>
+      <button onclick="recarregar()" class="btn-topo" title="Recarregar" aria-label="Recarregar">
         <i class="fas fa-sync-alt text-xs"></i>
       </button>
     </div>
   </header>
 
-  <!-- Filtros e Busca -->
-  <div class="px-5 pt-4 max-w-6xl mx-auto w-full flex flex-col sm:flex-row gap-3 justify-between items-center">
+  <!-- Busca: recolhida por padrão para não ocupar espaço no celular -->
+  <div id="area-busca" class="hidden px-4 pt-3 max-w-6xl mx-auto w-full">
     <div class="relative w-full sm:w-80">
-      <i class="fas fa-search absolute left-3.5 top-3 text-[#8A4B4B] text-sm"></i>
-      <input type="text" id="busca" oninput="renderizar()" placeholder="Buscar por nome, # ou item..." 
-             class="w-full bg-white border-2 border-[#E5C398] rounded-xl pl-10 pr-4 py-2 text-sm focus:outline-none focus:border-[#FBAF17] text-[#4B1715] placeholder-[#8A4B4B] shadow-sm">
-    </div>
-    
-    <div class="flex gap-2 w-full sm:w-auto">
-      <button onclick="mudarFiltro('pendentes')" id="btn-pendentes" class="flex-1 sm:flex-none px-4 py-2 rounded-xl bg-[#E52521] text-white font-bold text-xs shadow-md">
-        Na Fila
-      </button>
-      <button onclick="mudarFiltro('todos')" id="btn-todos" class="flex-1 sm:flex-none px-4 py-2 rounded-xl bg-white text-[#8A4B4B] border border-[#E5C398] font-bold text-xs hover:text-[#4B1715] shadow-sm">
-        Todos os Pedidos
-      </button>
+      <i class="fas fa-search absolute left-3.5 top-3.5 text-[#8A4B4B] text-sm"></i>
+      <input type="text" id="busca" oninput="renderizar()" placeholder="Buscar por nome, # ou item..." class="busca-campo">
     </div>
   </div>
 
-  <!-- Lista / Grade de Pedidos -->
-  <main class="flex-1 p-5 max-w-6xl mx-auto w-full">
-    <div id="grid-pedidos" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"></div>
+  <!-- Etapas do pedido: mostram a contagem e filtram a lista -->
+  <div id="trilho" class="trilho">
+    <nav id="abas" class="etapas max-w-6xl mx-auto w-full" aria-label="Etapas do pedido"></nav>
+  </div>
+
+  <!-- Lista de Pedidos -->
+  <main id="view-pedidos" class="flex-1 px-4 pb-8 pt-3 max-w-6xl mx-auto w-full">
+    <div id="grid-pedidos" class="grade grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"></div>
   </main>
 
+  <!-- Itens do cardápio: preço e "esgotado". Grava pelo n8n (N8N_ITEM_URL), nunca direto na planilha -->
+  <section id="view-itens" class="hidden flex-1 px-4 pb-8 pt-1 max-w-6xl mx-auto w-full">
+    <div id="lista-itens"></div>
+  </section>
+
+  <div id="toast" role="status" aria-live="polite"></div>
   <audio id="som-alerta" src="https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3" preload="auto"></audio>
 
   <script>
-    const SHEET_ID = '17o6cWNHn4SeyvIZ0rElyQIiZmJqfMl5MyUA1nW9JpVg';
+    // Colunas da planilha (aba de pedidos), na ordem:
+    // A Data | B WhatsApp | C Itens | D Total | E Pagamento | F Código | G Status | H Nome | I Pedido ID | J Situação pagamento
+    // Status gravado como: recebido | em_preparo | pronto | retirado
+    const CFG = window.CONFIG || {};
+
+    // `borda` e `pill` agora são classes do CSS acima: a cor do canhoto da comanda e a da régua de etapas
+    const STATUS = {
+      recebido:   { label: 'Recebido',   borda: 'st-recebido' },
+      em_preparo: { label: 'Em preparo', borda: 'st-preparo' },
+      pronto:     { label: 'Pronto',     borda: 'st-pronto' },
+      retirado:   { label: 'Retirado',   borda: 'st-retirado' }
+    };
+    const PROXIMO = {
+      recebido:   { para: 'em_preparo', texto: 'Iniciar preparo',    icone: 'fa-fire' },
+      em_preparo: { para: 'pronto',     texto: 'Marcar pronto',      icone: 'fa-bell' },
+      pronto:     { para: 'retirado',   texto: 'Confirmar retirada', icone: 'fa-check' }
+    };
+    const ANTERIOR = { em_preparo: 'recebido', pronto: 'em_preparo', retirado: 'pronto' };
 
     let pedidosAtuais = [];
-    let entreguesLocal = JSON.parse(localStorage.getItem('cantina_entregues') || '[]');
-    let filtroAtual = 'pendentes';
-    let totalAnterior = 0;
+    const ABAS = ['recebido', 'em_preparo', 'pronto', 'retirado'];
+    let abaAtual = 'recebido';
+    let abaComAlerta = false;       // pedido novo chegou enquanto a funcionária olhava outra aba
+    let conhecidos = null;          // chaves já vistas: o alerta toca só para pedido novo
+    const overrides = {};           // mudanças enviadas que a planilha ainda não refletiu
+    const enviando = new Set();     // pedidos com uma mudança em andamento
+    const menusAbertos = new Set(); // menus "⋯" abertos; guardados fora do HTML porque a lista é redesenhada a cada leitura
+
+    function esc(v) {
+      return String(v ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    }
+
+    function normStatus(s) {
+      const t = String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+      if (t.includes('prepar')) return 'em_preparo';
+      if (t.includes('pront')) return 'pronto';
+      if (t.includes('retir')) return 'retirado';
+      return 'recebido';   // vazio ou desconhecido entra na fila
+    }
+
+    function normSituacao(s) {
+      return String(s || '').toLowerCase().includes('pago') ? 'pago' : 'pendente';
+    }
+
+    function ehPix(forma) {
+      return String(forma || '').toLowerCase().includes('pix');
+    }
 
     function corPagamento(forma) {
       const f = (forma || '').toLowerCase();
-      if (f.includes('pix')) return 'bg-teal-100 text-teal-800 border-teal-300';
-      if (f.includes('crédito') || f.includes('credito')) return 'bg-purple-100 text-purple-800 border-purple-300';
-      if (f.includes('débito') || f.includes('debito')) return 'bg-blue-100 text-blue-800 border-blue-300';
-      return 'bg-[#FBAF17]/20 text-[#4B1715] border-[#FBAF17]/50';
+      if (f.includes('pix')) return 'pg-pix';
+      if (f.includes('crédito') || f.includes('credito')) return 'pg-credito';
+      if (f.includes('débito') || f.includes('debito')) return 'pg-debito';
+      return 'pg-padrao';
     }
 
     function formatarValor(v) {
@@ -110,26 +416,27 @@
       return isNaN(num) ? str : 'R$ ' + num.toFixed(2).replace('.', ',');
     }
 
-    function alternarEntregue(idUnico) {
-      if (entreguesLocal.includes(idUnico)) {
-        entreguesLocal = entreguesLocal.filter(i => i !== idUnico);
-      } else {
-        entreguesLocal.push(idUnico);
-      }
-      localStorage.setItem('cantina_entregues', JSON.stringify(entreguesLocal));
+    function mudarAba(nova) {
+      abaAtual = nova;
+      if (nova === 'recebido') abaComAlerta = false;
       renderizar();
     }
 
-    function mudarFiltro(novo) {
-      filtroAtual = novo;
-      document.getElementById('btn-pendentes').className = novo === 'pendentes' 
-        ? 'flex-1 sm:flex-none px-4 py-2 rounded-xl bg-[#E52521] text-white font-bold text-xs shadow-md' 
-        : 'flex-1 sm:flex-none px-4 py-2 rounded-xl bg-white text-[#8A4B4B] border border-[#E5C398] font-bold text-xs hover:text-[#4B1715] shadow-sm';
-      
-      document.getElementById('btn-todos').className = novo === 'todos' 
-        ? 'flex-1 sm:flex-none px-4 py-2 rounded-xl bg-[#E52521] text-white font-bold text-xs shadow-md' 
-        : 'flex-1 sm:flex-none px-4 py-2 rounded-xl bg-white text-[#8A4B4B] border border-[#E5C398] font-bold text-xs hover:text-[#4B1715] shadow-sm';
-      renderizar();
+    // A busca fica recolhida para liberar espaço; ao fechar, o termo é limpo para não esconder pedidos sem a pessoa perceber
+    function alternarBusca() {
+      const area = document.getElementById('area-busca');
+      const input = document.getElementById('busca');
+      const abrir = area.classList.contains('hidden');
+      area.classList.toggle('hidden', !abrir);
+      if (abrir) input.focus(); else { input.value = ''; renderizar(); }
+    }
+
+    function toast(msg) {
+      const t = document.getElementById('toast');
+      t.textContent = msg;
+      t.classList.add('show');
+      clearTimeout(toast.timer);
+      toast.timer = setTimeout(() => t.classList.remove('show'), 3500);
     }
 
     window.google = {
@@ -137,25 +444,45 @@
         Query: {
           setResponse: function(resposta) {
             if (!resposta || !resposta.table || !resposta.table.rows) return;
-            const linhas = resposta.table.rows;
-            const lista = linhas.map(r => {
+            const lista = resposta.table.rows.map(r => {
               const c = r.c || [];
               const val = (idx) => c[idx] ? (c[idx].f || c[idx].v || '') : '';
+              const chave = String(val(8) || (val(5) + '_' + val(0)));
+              let status = normStatus(val(6));
+              let situacao = normSituacao(val(9));
+
+              // Aplica o que foi enviado e ainda não apareceu na planilha; some quando a planilha alcança
+              const ov = overrides[chave];
+              if (ov) {
+                if (ov.status) { if (ov.status === status) delete ov.status; else status = ov.status; }
+                if (ov.situacao) { if (ov.situacao === situacao) delete ov.situacao; else situacao = ov.situacao; }
+                if (!ov.status && !ov.situacao) delete overrides[chave];
+              }
+
               return {
+                chave,
+                pedidoId: val(8),
                 data: val(0),
                 numero: val(1),
                 pedido: val(2),
                 valor: val(3),
                 pagamento: val(4),
                 codigo: val(5),
-                nome: val(7) // CORRIGIDO: Lendo a 8ª coluna (Coluna H)
+                status,
+                situacao,
+                nome: val(7)
               };
-            }).filter(p => (p.codigo || p.pedido) && String(p.codigo) !== 'Código de Retirada');
+            }).filter(p => (p.codigo || p.pedidoId) && String(p.codigo) !== 'Código de Retirada');
 
-            if (totalAnterior > 0 && lista.length > totalAnterior) {
-              document.getElementById('som-alerta').play().catch(() => {});
+            // Toca o alerta só para pedido que apareceu depois da primeira leitura
+            if (conhecidos) {
+              const novo = lista.some(p => !conhecidos.has(p.chave) && p.status === 'recebido');
+              if (novo) {
+                document.getElementById('som-alerta').play().catch(() => {});
+                if (abaAtual !== 'recebido') abaComAlerta = true;
+              }
             }
-            totalAnterior = lista.length;
+            conhecidos = new Set(lista.map(p => p.chave));
             pedidosAtuais = lista.reverse();
             renderizar();
           }
@@ -169,93 +496,344 @@
 
       const s = document.createElement('script');
       s.id = 'script-google';
-      s.src = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&headers=1&t=${Date.now()}`;
+      s.src = `https://docs.google.com/spreadsheets/d/${CFG.SHEET_ID}/gviz/tq?tqx=out:json&headers=1&t=${Date.now()}`;
       document.body.appendChild(s);
+    }
+
+    /* ---- mudança de status e de pagamento (passa pelo n8n) ---- */
+    async function atualizar(chave, mudanca) {
+      const p = pedidosAtuais.find(x => x.chave === chave);
+      if (!p || enviando.has(chave)) return;
+
+      const anterior = overrides[chave] ? { ...overrides[chave] } : null;
+      const ov = { ...(overrides[chave] || {}) };
+      if ('status' in mudanca) ov.status = mudanca.status;
+      if ('pagamento_situacao' in mudanca) ov.situacao = mudanca.pagamento_situacao === 'pago' ? 'pago' : 'pendente';
+      overrides[chave] = ov;
+
+      enviando.add(chave);
+      renderizar();
+      try {
+        if (CFG.N8N_STATUS_URL) {
+          const res = await fetch(CFG.N8N_STATUS_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ pedido_id: p.pedidoId, codigo: p.codigo, ...mudanca })
+          });
+          if (!res.ok) throw new Error('HTTP ' + res.status);
+        } else {
+          console.log('Modo teste (N8N_STATUS_URL vazio). Mudança:', mudanca);
+        }
+      } catch (err) {
+        console.error(err);
+        if (anterior) overrides[chave] = anterior; else delete overrides[chave];
+        toast('Não foi possível atualizar o pedido. Tente de novo.');
+      } finally {
+        enviando.delete(chave);
+        renderizar();
+      }
+    }
+
+    document.getElementById('grid-pedidos').addEventListener('click', (e) => {
+      const menu = e.target.closest('[data-menu]');
+      if (menu) {
+        const k = menu.dataset.menu;
+        if (menusAbertos.has(k)) menusAbertos.delete(k); else menusAbertos.add(k);
+        renderizar();
+        return;
+      }
+      const b = e.target.closest('[data-acao]');
+      if (!b || b.disabled) return;
+      const chave = b.dataset.chave;
+      if (b.dataset.acao === 'pix') atualizar(chave, { pagamento_situacao: 'pago' });
+      else atualizar(chave, { status: b.dataset.para });
+    });
+
+    /* ---- renderização ---- */
+    // A comanda segue a ordem de leitura da cozinha: código e etapa no canhoto, depois quem pediu e o quê,
+    // o total e, por último, o botão do próximo passo. O resto vai para o menu "⋯" para a comanda não crescer.
+    function cardHTML(p) {
+      const st = STATUS[p.status];
+      const busy = enviando.has(p.chave);
+      const numLimpo = String(p.numero || '').replace(/\D/g, '');
+      const prox = PROXIMO[p.status];
+      const ant = ANTERIOR[p.status];
+      const pixPendente = ehPix(p.pagamento) && p.situacao !== 'pago';
+      const busyCls = busy ? 'btn-busy' : '';
+      const menuAberto = menusAbertos.has(p.chave);
+
+      return `
+        <article class="ticket ${st.borda}">
+          <div class="ticket-papel">
+            <div class="ticket-topo">
+              <span class="ticket-cod">#${esc(p.codigo || '----')}</span>
+              <span class="tag-etapa">${st.label}</span>
+            </div>
+            <div class="ticket-corte" aria-hidden="true"></div>
+
+            <div class="ticket-corpo">
+              <div class="ticket-nome"><i class="fas fa-user"></i>${esc(p.nome || 'Sem nome')}</div>
+
+              <p class="itens-card">${esc(p.pedido || 'Sem descrição')}</p>
+
+              <div class="ticket-pagamento">
+                <span class="tag ${corPagamento(p.pagamento)}">${esc(p.pagamento || 'A definir')}</span>
+                ${pixPendente ? `<span class="tag pg-pendente"><i class="fas fa-clock"></i>Pix pendente</span>` : ''}
+              </div>
+
+              <div class="ticket-total">
+                <span class="ticket-total-rotulo">Total</span>
+                <span class="ticket-total-pontos"></span>
+                <span class="ticket-total-valor">${formatarValor(p.valor)}</span>
+              </div>
+
+              <div class="acoes">
+                ${prox ? `
+                  <button data-acao="status" data-para="${prox.para}" data-chave="${esc(p.chave)}"
+                          class="btn-principal ${busyCls}">
+                    <i class="fas ${prox.icone}"></i> ${prox.texto}
+                  </button>` : `
+                  <div class="btn-concluido">
+                    <i class="fas fa-check"></i> Pedido retirado
+                  </div>`}
+                <button data-menu="${esc(p.chave)}" aria-label="Mais opções" aria-expanded="${menuAberto}" class="btn-mais">
+                  <i class="fas fa-ellipsis-h"></i>
+                </button>
+              </div>
+
+              ${pixPendente ? `
+                <button data-acao="pix" data-chave="${esc(p.chave)}" class="btn-pix ${busyCls}">
+                  <i class="fas fa-money-check-alt"></i> Marcar Pix recebido
+                </button>` : ''}
+
+              <div class="menu-card ${menuAberto ? 'aberto' : ''} ticket-menu">
+                <div><i class="far fa-clock mr-1"></i> ${esc(p.data)}</div>
+                <div class="menu-acoes">
+                  ${numLimpo ? `
+                    <a href="https://wa.me/${numLimpo.startsWith('55') ? numLimpo : '55' + numLimpo}" target="_blank" rel="noopener"
+                       class="menu-acao menu-acao-zap">
+                      <i class="fab fa-whatsapp text-base"></i> ${esc(p.numero)}
+                    </a>` : ''}
+                  ${ant ? `
+                    <button data-acao="status" data-para="${ant}" data-chave="${esc(p.chave)}"
+                            class="menu-acao ${busyCls}">
+                      <i class="fas fa-undo"></i> Voltar para "${STATUS[ant].label}"
+                    </button>` : ''}
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="ticket-serra" aria-hidden="true"></div>
+        </article>`;
     }
 
     function renderizar() {
       const grid = document.getElementById('grid-pedidos');
-      const termo = document.getElementById('busca').value.toLowerCase();
-      let naFila = 0;
+      const termo = document.getElementById('busca').value.toLowerCase().trim();
 
-      const html = pedidosAtuais.map(p => {
-        const codigo = String(p.codigo || '----');
-        const data = p.data || '';
-        const pedido = p.pedido || 'Sem descrição';
-        const valor = formatarValor(p.valor);
-        const pagamento = p.pagamento || 'A definir';
-        const numero = String(p.numero || '');
-        const nome = String(p.nome || ''); 
-        const idUnico = codigo + '_' + data;
-        const isEntregue = entreguesLocal.includes(idUnico);
+      const contagem = { recebido: 0, em_preparo: 0, pronto: 0, retirado: 0 };
+      pedidosAtuais.forEach(p => contagem[p.status]++);
 
-        if (!isEntregue) naFila++;
-        if (filtroAtual === 'pendentes' && isEntregue) return '';
-        if (termo && !codigo.toLowerCase().includes(termo) && !pedido.toLowerCase().includes(termo) && !nome.toLowerCase().includes(termo)) return '';
+      document.getElementById('abas').innerHTML = ABAS.map(a => `
+        <button onclick="mudarAba('${a}')" class="aba aba-${a} ${a === abaAtual ? 'ativa' : ''} ${a === 'recebido' && abaComAlerta ? 'alerta' : ''}">
+          <span class="qtd">${contagem[a]}</span>${STATUS[a].label}
+        </button>`).join('');
 
-        const numLimpo = numero.replace(/\D/g, '');
+      // Com busca ativa, procura em todas as etapas: o pedido buscado pode estar em outra aba
+      const visiveis = pedidosAtuais.filter(p => {
+        if (!termo) return p.status === abaAtual;
+        return String(p.codigo || '').toLowerCase().includes(termo)
+            || String(p.pedido || '').toLowerCase().includes(termo)
+            || String(p.nome || '').toLowerCase().includes(termo);
+      });
 
-        return `
-          <div class="card-pedido ${isEntregue ? 'card-entregue' : ''} rounded-2xl p-4 flex flex-col justify-between">
-            <div>
-              <div class="flex justify-between items-start mb-3">
-                <div>
-                  <span class="text-[10px] uppercase tracking-wider text-[#8A4B4B] font-bold">Código de Retirada</span>
-                  <div class="text-3xl font-black text-[#4B1715] tracking-tight leading-none mt-1">#${codigo}</div>
-                </div>
-                <span class="px-2.5 py-1 rounded-lg text-[11px] font-black border ${corPagamento(pagamento)}">
-                  ${pagamento}
-                </span>
-              </div>
-
-              <div class="bg-[#F4E8D1]/50 p-3 rounded-xl mb-3 border border-[#E5C398]">
-                <span class="text-[11px] text-[#8A4B4B] font-medium block mb-1">
-                  <i class="fas fa-utensils mr-1 text-[#E52521]"></i> Itens do Pedido:
-                </span>
-                <p class="text-sm font-semibold text-[#4B1715] whitespace-pre-line leading-relaxed">${pedido}</p>
-              </div>
-            </div>
-
-            <div>
-              <div class="flex justify-between items-end text-xs mb-3 pt-2 border-t border-[#E5C398]">
-                <div class="text-[#8A4B4B]">
-                  ${nome ? `<div class="mb-1 text-sm font-bold text-[#E52521]"><i class="fas fa-user mr-1"></i> ${nome}</div>` : ''}
-                  <div><i class="far fa-clock mr-1"></i> ${data}</div>
-                  ${numero ? `<div class="mt-0.5"><i class="fab fa-whatsapp text-green-600 mr-1"></i> ${numero}</div>` : ''}
-                </div>
-                <div class="text-right">
-                  <span class="text-[10px] text-[#8A4B4B] block font-semibold">Total</span>
-                  <span class="text-base font-black text-[#E52521]">${valor}</span>
-                </div>
-              </div>
-
-              <div class="flex gap-2">
-                <button onclick="alternarEntregue('${idUnico}')" 
-                        class="flex-1 py-2.5 rounded-xl font-bold text-xs transition flex items-center justify-center gap-1.5 shadow-sm ${isEntregue ? 'bg-gray-200 text-gray-500' : 'bg-[#FBAF17] active:bg-[#e09d14] text-[#4B1715]'}">
-                  <i class="fas ${isEntregue ? 'fa-undo' : 'fa-check'}"></i>
-                  ${isEntregue ? 'Voltar para a Fila' : 'Concluir Pedido'}
-                </button>
-                ${numLimpo ? `
-                  <a href="https://wa.me/${numLimpo.startsWith('55') ? numLimpo : '55'+numLimpo}" target="_blank" 
-                     class="w-10 h-10 bg-white border border-[#E5C398] active:bg-gray-50 text-green-600 rounded-xl flex items-center justify-center transition shadow-sm" title="WhatsApp">
-                    <i class="fab fa-whatsapp text-base"></i>
-                  </a>` : ''}
-              </div>
-            </div>
-          </div>
-        `;
-      }).join('');
-
-      document.getElementById('contador-pedidos').innerText = naFila;
-      grid.innerHTML = html || `
-        <div class="col-span-full text-center py-20 text-[#8A4B4B]">
-          <i class="fas fa-concierge-bell text-4xl mb-3 text-[#E5C398] block"></i>
-          Nenhum pedido pendente na fila.
+      grid.innerHTML = visiveis.map(cardHTML).join('') || `
+        <div class="vazio col-span-full">
+          <i class="fas fa-concierge-bell"></i>
+          ${termo ? 'Nenhum pedido encontrado.' : 'Nenhum pedido nesta etapa.'}
         </div>`;
+    }
+
+    /* ---- itens do cardápio (aba "Cardapio" da planilha) ---- */
+    // Colunas pelo nome do cabeçalho: id | categoria | nome | desc | emoji | preco | disponivel
+    // (mesmo leitor do cardápio: o painel e o cliente enxergam a mesma fonte)
+    function lerAbaCardapio(resp) {
+      if (!resp || resp.status !== 'ok' || !resp.table) return null;
+      const col = (n) => resp.table.cols.findIndex(c => String(c.label || '').trim().toLowerCase() === n);
+      const ix = { id: col('id'), categoria: col('categoria'), nome: col('nome'), emoji: col('emoji'), preco: col('preco'), disp: col('disponivel') };
+      // Aba inexistente faz o Google devolver a primeira aba (pedidos): sem o cabeçalho certo, ignora.
+      if ([ix.id, ix.categoria, ix.nome, ix.preco].some(i => i < 0)) return null;
+      const val = (r, i) => (i >= 0 && r.c && r.c[i]) ? r.c[i].v : null;
+      const txt = (r, i) => String(val(r, i) ?? '').trim();
+      return (resp.table.rows || []).map(r => {
+        const bruto = val(r, ix.preco);
+        const preco = typeof bruto === 'number' ? bruto : parseFloat(String(bruto ?? '').replace(',', '.'));
+        const d = val(r, ix.disp);
+        const esgotado = d === false || ['false', 'nao', 'não', 'n', '0', 'esgotado'].includes(String(d ?? '').trim().toLowerCase());
+        return { id: txt(r, ix.id), categoria: txt(r, ix.categoria), nome: txt(r, ix.nome), emoji: txt(r, ix.emoji) || '🍽️', preco, disponivel: !esgotado };
+      }).filter(i => i.id && i.nome && i.categoria && Number.isFinite(i.preco));
+    }
+
+    let visao = 'pedidos';
+    let itensAtuais = null;            // null = ainda não carregou; [] = aba vazia
+    let itensErro = false;
+    const itemOverrides = {};          // mudanças enviadas que a planilha ainda não refletiu
+    const itemEnviando = new Set();
+    const rascunhoPreco = {};          // o que a funcionária digitou e ainda não salvou; sobrevive ao redesenho da lista
+
+    const brl = (n) => n.toFixed(2).replace('.', ',');
+
+    window.painelItens = (resp) => {
+      const lista = lerAbaCardapio(resp);
+      itensErro = !lista;
+      if (lista) {
+        itensAtuais = lista;
+        // Descarta a mudança pendente quando a planilha já alcançou
+        lista.forEach(it => {
+          const ov = itemOverrides[it.id];
+          if (!ov) return;
+          if ('preco' in ov && Math.abs(ov.preco - it.preco) < 0.001) delete ov.preco;
+          if ('disponivel' in ov && ov.disponivel === it.disponivel) delete ov.disponivel;
+          if (!Object.keys(ov).length) delete itemOverrides[it.id];
+        });
+      }
+      renderizarItens();
+    };
+
+    function carregarItens() {
+      if (!CFG.SHEET_ID) return;
+      document.getElementById('script-itens')?.remove();
+      const aba = encodeURIComponent(CFG.ABA_CARDAPIO || 'Cardapio');
+      const sc = document.createElement('script');
+      sc.id = 'script-itens';
+      sc.src = `https://docs.google.com/spreadsheets/d/${CFG.SHEET_ID}/gviz/tq?tqx=out:json;responseHandler:painelItens&headers=1&sheet=${aba}&t=${Date.now()}`;
+      sc.onerror = () => { itensErro = true; renderizarItens(); };
+      document.body.appendChild(sc);
+    }
+
+    function recarregar() { if (visao === 'itens') carregarItens(); else carregarPlanilha(); }
+
+    function alternarVisao() {
+      const area = document.getElementById('area-busca');
+      if (visao === 'pedidos' && !area.classList.contains('hidden')) alternarBusca();   // fecha e limpa a busca
+      visao = visao === 'pedidos' ? 'itens' : 'pedidos';
+      const itens = visao === 'itens';
+      document.getElementById('trilho').classList.toggle('hidden', itens);
+      document.getElementById('view-pedidos').classList.toggle('hidden', itens);
+      document.getElementById('view-itens').classList.toggle('hidden', !itens);
+      document.getElementById('btn-busca').classList.toggle('hidden', itens);
+      document.getElementById('subtitulo').textContent = itens ? 'Itens do cardápio' : 'Gestor de Pedidos';
+      document.querySelector('#btn-visao i').className = 'fas text-xs ' + (itens ? 'fa-receipt' : 'fa-utensils');
+      const rotuloVisao = itens ? 'Voltar aos pedidos' : 'Itens do cardápio';
+      document.getElementById('btn-visao').title = rotuloVisao;
+      document.getElementById('btn-visao').setAttribute('aria-label', rotuloVisao);
+      if (itens) { renderizarItens(); carregarItens(); }
+    }
+
+    /* Preço e "esgotado" passam pelo n8n; a planilha é atualizada por lá */
+    async function atualizarItem(id, mudanca) {
+      const it = itensAtuais && itensAtuais.find(x => x.id === id);
+      if (!it || itemEnviando.has(id)) return;
+
+      const anterior = itemOverrides[id] ? { ...itemOverrides[id] } : null;
+      itemOverrides[id] = { ...(itemOverrides[id] || {}), ...mudanca };
+      itemEnviando.add(id);
+      renderizarItens(true);
+      try {
+        if (CFG.N8N_ITEM_URL) {
+          const res = await fetch(CFG.N8N_ITEM_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id, ...mudanca })
+          });
+          if (!res.ok) throw new Error('HTTP ' + res.status);
+        } else {
+          console.log('Modo teste (N8N_ITEM_URL vazio). Mudança:', { id, ...mudanca });
+        }
+        if ('preco' in mudanca) delete rascunhoPreco[id];
+      } catch (err) {
+        console.error(err);
+        if (anterior) itemOverrides[id] = anterior; else delete itemOverrides[id];
+        toast('Não foi possível atualizar o item. Tente de novo.');
+      } finally {
+        itemEnviando.delete(id);
+        renderizarItens(true);
+      }
+    }
+
+    const listaItensEl = document.getElementById('lista-itens');
+
+    listaItensEl.addEventListener('input', (e) => {
+      const campo = e.target.closest('[data-preco]');
+      if (campo) rascunhoPreco[campo.dataset.preco] = campo.value;
+    });
+
+    listaItensEl.addEventListener('click', (e) => {
+      const b = e.target.closest('[data-item-acao]');
+      if (!b || b.disabled) return;
+      const id = b.dataset.id;
+      if (b.dataset.itemAcao === 'esgotar') {
+        atualizarItem(id, { disponivel: b.dataset.para === 'sim' });
+        return;
+      }
+      // salvar preço: aceita vírgula ou ponto
+      const campo = listaItensEl.querySelector(`[data-preco="${CSS.escape(id)}"]`);
+      const novo = parseFloat(String(campo.value).replace(',', '.'));
+      if (!Number.isFinite(novo) || novo <= 0 || novo > 999) { toast('Informe um preço válido, ex.: 6,50'); return; }
+      atualizarItem(id, { preco: Math.round(novo * 100) / 100 });
+    });
+
+    function itemHTML(base) {
+      const it = { ...base, ...(itemOverrides[base.id] || {}) };
+      const busy = itemEnviando.has(it.id);
+      const valorCampo = rascunhoPreco[it.id] ?? brl(it.preco);
+      const idAttr = esc(it.id);
+      return `
+        <div class="item ${it.disponivel ? 'item-ok' : 'item-off'} ${busy ? 'btn-busy' : ''}">
+          <div class="flex items-center justify-between gap-2">
+            <div class="item-nome">${esc(it.emoji)} ${esc(it.nome)}</div>
+            ${it.disponivel ? '' : '<span class="tag tag-esgotado">Esgotado</span>'}
+          </div>
+          <div class="item-preco">
+            <div class="campo-preco">
+              <span>R$</span>
+              <input type="text" inputmode="decimal" data-preco="${idAttr}" value="${esc(valorCampo)}" aria-label="Preço de ${esc(it.nome)}">
+            </div>
+            <button data-item-acao="preco" data-id="${idAttr}" class="btn-salvar">Salvar</button>
+          </div>
+          <button data-item-acao="esgotar" data-id="${idAttr}" data-para="${it.disponivel ? 'nao' : 'sim'}"
+                  class="btn-item ${it.disponivel ? 'btn-item-esgotar' : 'btn-item-voltar'}">
+            <i class="fas ${it.disponivel ? 'fa-ban' : 'fa-check'}"></i> ${it.disponivel ? 'Marcar como esgotado' : 'Voltar ao cardápio'}
+          </button>
+        </div>`;
+    }
+
+    // `forcar` redesenha mesmo com um campo de preço em foco (depois de salvar); o redesenho
+    // periódico respeita o campo em foco para não apagar o que a funcionária está digitando.
+    function renderizarItens(forcar) {
+      if (visao !== 'itens') return;
+      if (!forcar && listaItensEl.contains(document.activeElement) && document.activeElement.tagName === 'INPUT') return;
+
+      if (itensAtuais === null) {
+        listaItensEl.innerHTML = `<div class="vazio">${itensErro
+          ? 'Não encontrei a aba "' + esc(CFG.ABA_CARDAPIO || 'Cardapio') + '" na planilha. Confira o nome e o cabeçalho.'
+          : 'Carregando itens...'}</div>`;
+        return;
+      }
+      const grupos = new Map();
+      itensAtuais.forEach(it => {
+        if (!grupos.has(it.categoria)) grupos.set(it.categoria, []);
+        grupos.get(it.categoria).push(it);
+      });
+      listaItensEl.innerHTML = [...grupos].map(([cat, itens]) => `
+        <h2 class="cat-titulo">${esc(cat)}</h2>
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">${itens.map(itemHTML).join('')}</div>`).join('')
+        || '<div class="vazio">A aba do cardápio está vazia.</div>';
     }
 
     carregarPlanilha();
     setInterval(carregarPlanilha, 4000);
+    setInterval(() => { if (visao === 'itens') carregarItens(); }, 15000);
   </script>
 </body>
 </html>
