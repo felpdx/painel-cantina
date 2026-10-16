@@ -439,6 +439,46 @@
       toast.timer = setTimeout(() => t.classList.remove('show'), 3500);
     }
 
+    /* ---- chave do painel ----
+       Os webhooks de status e de item só aceitam chamadas com esta chave (Header Auth no n8n).
+       Sem ela, qualquer um que lesse o config.js poderia baixar preço ou marcar pedido como pago.
+       Ela fica só no navegador da funcionária, nunca no config.js, que é público. */
+    const CHAVE_STORAGE = 'snackPainelChave';
+    let chaveMemoria = '';   // reserva para navegador que bloqueia localStorage (aba anônima)
+    function lerChave() {
+      try { return localStorage.getItem(CHAVE_STORAGE) || chaveMemoria; } catch { return chaveMemoria; }
+    }
+    function guardarChave(v) {
+      chaveMemoria = v;
+      try { if (v) localStorage.setItem(CHAVE_STORAGE, v); else localStorage.removeItem(CHAVE_STORAGE); } catch {}
+    }
+    function pedirChave(msg) {
+      const v = (prompt(msg) || '').trim();
+      if (v) guardarChave(v);
+      return v;
+    }
+    const erroChave = (msg) => Object.assign(new Error(msg), { chave: true });
+
+    // POST ao n8n com a chave. Chave recusada (401/403) não altera nada no n8n,
+    // então é seguro pedir de novo e repetir a mesma chamada uma vez.
+    async function postarN8n(url, corpo) {
+      let chave = lerChave() || pedirChave('Digite a chave do painel para salvar alterações.');
+      for (let tentativa = 0; chave && tentativa < 2; tentativa++) {
+        const res = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-Painel-Chave': chave },
+          body: JSON.stringify(corpo)
+        });
+        if (res.status !== 401 && res.status !== 403) {
+          if (!res.ok) throw new Error('HTTP ' + res.status);
+          return res;
+        }
+        guardarChave('');
+        chave = tentativa === 0 ? pedirChave('Chave do painel incorreta. Digite de novo.') : '';
+      }
+      throw erroChave('Chave do painel ausente ou recusada');
+    }
+
     window.google = {
       visualization: {
         Query: {
@@ -515,19 +555,14 @@
       renderizar();
       try {
         if (CFG.N8N_STATUS_URL) {
-          const res = await fetch(CFG.N8N_STATUS_URL, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ pedido_id: p.pedidoId, codigo: p.codigo, ...mudanca })
-          });
-          if (!res.ok) throw new Error('HTTP ' + res.status);
+          await postarN8n(CFG.N8N_STATUS_URL, { pedido_id: p.pedidoId, codigo: p.codigo, ...mudanca });
         } else {
           console.log('Modo teste (N8N_STATUS_URL vazio). Mudança:', mudanca);
         }
       } catch (err) {
         console.error(err);
         if (anterior) overrides[chave] = anterior; else delete overrides[chave];
-        toast('Não foi possível atualizar o pedido. Tente de novo.');
+        toast(err.chave ? 'Sem a chave do painel certa, a alteração não foi salva.' : 'Não foi possível atualizar o pedido. Tente de novo.');
       } finally {
         enviando.delete(chave);
         renderizar();
@@ -741,12 +776,7 @@
       renderizarItens(true);
       try {
         if (CFG.N8N_ITEM_URL) {
-          const res = await fetch(CFG.N8N_ITEM_URL, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ id, ...mudanca })
-          });
-          if (!res.ok) throw new Error('HTTP ' + res.status);
+          await postarN8n(CFG.N8N_ITEM_URL, { id, ...mudanca });
         } else {
           console.log('Modo teste (N8N_ITEM_URL vazio). Mudança:', { id, ...mudanca });
         }
@@ -754,7 +784,7 @@
       } catch (err) {
         console.error(err);
         if (anterior) itemOverrides[id] = anterior; else delete itemOverrides[id];
-        toast('Não foi possível atualizar o item. Tente de novo.');
+        toast(err.chave ? 'Sem a chave do painel certa, a alteração não foi salva.' : 'Não foi possível atualizar o item. Tente de novo.');
       } finally {
         itemEnviando.delete(id);
         renderizarItens(true);
