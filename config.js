@@ -18,6 +18,9 @@ window.CONFIG = {
   // ID da planilha do Google Sheets (trecho entre /d/ e /edit na URL).
   SHEET_ID: "17o6cWNHn4SeyvIZ0rElyQIiZmJqfMl5MyUA1nW9JpVg",
 
+  // Meta de pedidos por dia, usada no nível e na barra de progresso do painel (aba Perfil).
+  META_PEDIDOS_DIA: 30,
+
   // Pix. Deixe PIX_CHAVE vazio para esconder a opção "Pagar com Pix agora".
   PIX_CHAVE: "",
   PIX_NOME: "",
