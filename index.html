@@ -1,869 +1,1083 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Snack Cantina - Gestor de Pedidos</title>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Snack | Gestor de Pedidos</title>
+<meta name="theme-color" content="#0E0E10">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Snack">
+<link rel="icon" type="image/png" href="assets/icone-180.png">
+<link rel="apple-touch-icon" href="assets/icone-180.png">
+<link rel="manifest" href="manifest.webmanifest">
+<!-- Fontes: Outfit (texto) e Lilita One (marca). Única dependência externa de visual deste painel. -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Lilita+One&display=swap" rel="stylesheet">
+<script src="config.js"></script>
+<style>
+  /* Gestor de pedidos da cantina: Login, Pedidos, Cardápio e Perfil. O mascote é sempre uma imagem parada;
+     a única animação é a bolinha verde da etapa atual e o ponto vermelho de pedido novo. */
+  :root {
+    --bg: #0E0E10;
+    --surface: #1A1A1D;
+    --surface-2: #232327;
+    --line: #2B2B30;
+    --fg: #F5F3F2;
+    --muted: #9C9599;
+    --red: #E52521;
+    --wine: #A8110E;
+    --mostarda: #FBAF17;
+    --verde: #3DD68C;
+    --grad: linear-gradient(135deg, var(--red), var(--wine));
+    --font: "Outfit", system-ui, -apple-system, "Segoe UI", sans-serif;
+    color-scheme: dark;
+  }
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  html { background: var(--bg); }
+  body { margin: 0; background: var(--bg); color: var(--fg); font-family: var(--font); -webkit-font-smoothing: antialiased; }
+  button, input { font-family: inherit; }
+  :focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
+  img { display: block; max-width: 100%; }
 
-  <meta name="theme-color" content="#4B1715">
-  <meta name="mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="apple-mobile-web-app-title" content="Snack Cantina">
-  <link rel="icon" type="image/png" href="https://cdn-icons-png.flaticon.com/512/3075/3075977.png">
-  <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/3075/3075977.png">
+  /* Coluna estreita mesmo no computador, para parecer app de celular. */
+  .app {
+    max-width: 460px; margin: 0 auto;
+    padding: 18px max(16px, env(safe-area-inset-right, 0px)) 140px max(16px, env(safe-area-inset-left, 0px));
+    display: grid;
+    /* minmax(0, 1fr) impede que a fileira rolável de filtros alargue a coluna. */
+    grid-template-columns: minmax(0, 1fr);
+    gap: 22px;
+    align-content: start;
+  }
+  .aviso { font-size: 11px; color: var(--muted); text-align: center; letter-spacing: .04em; margin: 0; }
 
-  <link rel="manifest" href='data:application/manifest+json,{"name":"Snack Cantina","short_name":"Cantina","start_url":".","display":"standalone","background_color":"#F4E8D1","theme_color":"#4B1715","icons":[{"src":"https://cdn-icons-png.flaticon.com/512/3075/3075977.png","sizes":"512x512","type":"image/png"}]}'>
+  /* ---------- Cabeçalho da tela de Pedidos ---------- */
+  .topo { display: flex; align-items: center; gap: 12px; }
+  .avatar { width: 46px; height: 46px; border-radius: 50%; object-fit: cover; object-position: 50% 38%; border: 2px solid var(--red); background: var(--wine); flex: none; }
+  .topo h1 { margin: 0; font-size: 26px; font-weight: 800; line-height: 1.1; }
+  .topo p { margin: 2px 0 0; font-size: 13px; color: var(--muted); }
+  .sino { margin-left: auto; width: 42px; height: 42px; border-radius: 50%; border: 1px solid var(--line); background: var(--surface); display: grid; place-items: center; position: relative; color: var(--fg); flex: none; }
+  .sino svg { width: 20px; height: 20px; }
+  .sino b { position: absolute; top: 8px; right: 9px; width: 9px; height: 9px; border-radius: 50%; background: var(--red); border: 2px solid var(--surface); }
 
-  <script src="https://cdn.tailwindcss.com"></script>
-  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
-  <script src="config.js"></script>
+  /* ---------- Cartão de destaque com a coxinha sentada na borda ---------- */
+  .destaque-wrap { position: relative; margin-top: 106px; --w: 172px; }
+  .anuncio { position: absolute; left: 2px; top: -100px; max-width: 46%; }
+  .anuncio h2 { margin: 0; font-size: 24px; font-weight: 800; line-height: 1.1; text-wrap: balance; }
+  .anuncio p { margin: 4px 0 0; font-size: 13px; color: var(--muted); }
+  /* A borda "invisível" da pose fica a 72% da altura da imagem: alinhada ao topo do cartão. */
+  .sentada { position: absolute; right: 14px; top: calc(var(--w) * -0.72); width: var(--w); height: var(--w); z-index: 2; pointer-events: none; }
+  .sombra-sentada { position: absolute; right: 22px; top: -3px; width: 148px; height: 12px; border-radius: 50%; background: radial-gradient(closest-side, rgba(0,0,0,.45), transparent); z-index: 1; }
+  /* Cartão escuro com borda em degradê vermelho: o vermelho vira detalhe, não o bloco inteiro. */
+  .destaque { position: relative; border-radius: 28px; border: 1.5px solid transparent; background: linear-gradient(160deg, #232327, #17171a) padding-box, linear-gradient(135deg, var(--red), rgba(168,17,14,.25) 70%) border-box; box-shadow: 0 14px 40px rgba(229,37,33,.12); padding: 38px 18px 18px; display: grid; gap: 6px; }
+  .destaque small { font-size: 12px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+  .destaque h3 { margin: 0; font-size: 22px; font-weight: 800; line-height: 1.15; }
+  .destaque p { margin: 0; font-size: 14px; color: #cfc9cc; }
+  .destaque .btn { margin-top: 10px; }
+  .pedido .linha-tempo { margin: 4px 0 0; }
+  .pedido .etapa .ponto { background: var(--surface); }
+  .pedido .etapa.feita .ponto, .pedido .etapa.atual .ponto { background: var(--verde); }
 
-  <style>
-    /* ------------------------------------------------------------
-       REDESIGN do gestor de pedidos. Só aparência: a lógica (planilha,
-       n8n, status, itens) é a mesma do PainelCantinaNovo.html.
-       Ideia: cada pedido é uma comanda de papel presa no varal da cozinha.
-       Sem fontes externas: o projeto é vanilla e não adiciona CDN novo.
-       ------------------------------------------------------------ */
-    :root {
-      --creme: #F4E8D1;
-      --papel: #FFFBF2;
-      --vermelho: #E52521;
-      --mostarda: #FBAF17;
-      --mostarda-escura: #d99207;
-      --marrom: #4B1715;
-      --marrom-suave: #8A4B4B;
-      --linha: #E5C398;
-      --verde: #1b7a4b;
-      --laranja: #d9650b;
-      --cinza: #9a8b7a;
+  /* Linha do tempo do pedido: a bolinha verde que pisca marca a etapa atual e anda a cada avanço. */
+  .linha-tempo { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); margin: 12px 0 2px; }
+  .etapa { position: relative; display: grid; justify-items: center; gap: 7px; font-size: 11px; font-weight: 600; color: var(--muted); }
+  .etapa::before { content: ""; position: absolute; top: 6px; left: -50%; width: 100%; height: 2px; background: #3a3a40; }
+  .etapa:first-child::before { display: none; }
+  .etapa .ponto { position: relative; z-index: 1; width: 14px; height: 14px; border-radius: 50%; border: 2px solid #4a4a50; background: #1b1b1e; }
+  .etapa.feita, .etapa.atual { color: var(--fg); }
+  .etapa.feita::before, .etapa.atual::before { background: var(--verde); }
+  .etapa.feita .ponto, .etapa.atual .ponto { background: var(--verde); border-color: var(--verde); }
+  .etapa.atual .ponto { animation: pulsar 1.5s ease-out infinite, piscar 1.5s ease-in-out infinite; }
+  @keyframes pulsar { 0% { box-shadow: 0 0 0 0 rgba(61,214,140,.65); } 70% { box-shadow: 0 0 0 10px rgba(61,214,140,0); } 100% { box-shadow: 0 0 0 0 rgba(61,214,140,0); } }
+  @keyframes piscar { 0%, 100% { opacity: 1; } 50% { opacity: .55; } }
+  @media (prefers-reduced-motion: reduce) { .etapa.atual .ponto { animation: none; box-shadow: 0 0 0 4px rgba(61,214,140,.3); } }
 
-      --altura-topo: 68px;
-      --f-titulo: Rockwell, "Rockwell Nova", "Roboto Slab", Cambria, Georgia, serif;
-      --f-texto: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-      --f-recibo: ui-monospace, "Cascadia Mono", "SF Mono", Consolas, "Liberation Mono", monospace;
-    }
+  /* ---------- Resumo do dia ---------- */
+  .resumo { background: var(--surface); border: 1px solid var(--line); border-radius: 24px; padding: 18px; display: grid; gap: 14px; }
+  .resumo .linha { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-end; gap: 12px; }
+  .resumo small { font-size: 12px; color: var(--muted); display: block; margin-bottom: 2px; }
+  .resumo strong { font-size: 30px; font-weight: 800; letter-spacing: -.02em; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .selo { font-size: 12px; font-weight: 700; padding: 6px 11px; border-radius: 999px; background: rgba(251,175,23,.14); color: var(--mostarda); white-space: nowrap; }
+  .meta { height: 10px; border-radius: 999px; background: var(--surface-2); overflow: hidden; }
+  .meta i { display: block; height: 100%; width: 45%; background: var(--grad); border-radius: 999px; }
+  .meta-txt { display: flex; justify-content: space-between; gap: 8px; font-size: 12px; color: var(--muted); }
 
-    body {
-      background-color: var(--creme);
-      /* Retícula de pontos bem sutil, como papel de impressão antigo */
-      background-image: radial-gradient(rgba(75, 23, 21, .07) 1px, transparent 1.3px);
-      background-size: 14px 14px;
-      color: var(--marrom);
-      font-family: var(--f-texto);
-      -webkit-tap-highlight-color: transparent;
-    }
+  /* ---------- Filtros e pedidos ---------- */
+  .secao { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 12px; }
+  .secao h2 { margin: 0; font-size: 20px; font-weight: 700; }
+  .secao span { font-size: 13px; color: var(--muted); }
+  .chips { display: flex; gap: 10px; overflow-x: auto; padding-bottom: 4px; scrollbar-width: none; }
+  .chips::-webkit-scrollbar { display: none; }
+  .chip { flex: none; border: 0; cursor: pointer; background: var(--surface-2); color: var(--muted); border-radius: 16px; padding: 10px 14px; font-size: 14px; font-weight: 600; display: grid; gap: 2px; text-align: left; min-width: 92px; }
+  .chip b { font-size: 20px; font-weight: 800; color: var(--fg); font-variant-numeric: tabular-nums; }
+  .chip[aria-pressed="true"] { background: #fff; color: #333; }
+  .chip[aria-pressed="true"] b { color: #111; }
+  .lista { display: grid; gap: 14px; margin-top: 14px; }
+  .pedido { background: var(--surface); border: 1px solid var(--line); border-radius: 24px; padding: 16px; display: grid; gap: 12px; }
+  .pedido header { display: flex; align-items: center; gap: 12px; }
+  .inicial { width: 42px; height: 42px; border-radius: 14px; background: var(--surface-2); display: grid; place-items: center; font-weight: 800; font-size: 18px; flex: none; }
+  .pedido header strong { display: block; font-size: 17px; font-weight: 700; }
+  .cod { font-size: 12px; color: var(--muted); }
+  .pill { margin-left: auto; font-size: 12px; font-weight: 700; padding: 5px 11px; border-radius: 999px; white-space: nowrap; }
+  .pill.recebido { background: rgba(229,37,33,.16); color: #ff7773; }
+  .pill.em_preparo { background: rgba(251,175,23,.15); color: var(--mostarda); }
+  .pill.pronto { background: rgba(61,214,140,.15); color: var(--verde); }
+  .pill.retirado, .pill.cancelado { background: var(--surface-2); color: var(--muted); }
+  .itens { list-style: none; margin: 0; padding: 12px 14px; display: grid; gap: 6px; background: var(--surface-2); border-radius: 16px; font-size: 14px; }
+  .itens li { display: flex; justify-content: space-between; gap: 10px; }
+  .itens li span:last-child { color: var(--muted); font-variant-numeric: tabular-nums; }
+  .rodape { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+  .pag { font-size: 13px; color: var(--muted); display: flex; align-items: center; gap: 6px; }
+  .pag i { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); display: block; }
+  .pag.pago i { background: var(--verde); }
+  .pag.pendente i { background: var(--mostarda); }
+  .total { font-size: 22px; font-weight: 800; font-variant-numeric: tabular-nums; }
+  .btn { border: 0; width: 100%; padding: 14px; border-radius: 16px; font-size: 16px; font-weight: 700; color: #fff; background: var(--grad); cursor: pointer; }
+  .btn-fantasma { border: 1px solid var(--line); background: transparent; color: var(--fg); }
 
-    :focus-visible { outline: 3px solid var(--mostarda); outline-offset: 2px; }
+  /* Estado vazio com a coxinha dormindo */
+  .vazio { background: var(--surface); border: 1px dashed #3a3a40; border-radius: 24px; padding: 18px 16px 22px; display: grid; justify-items: center; gap: 6px; text-align: center; }
+  .vazio img { width: 210px; }
+  .vazio strong { font-size: 18px; }
+  .vazio span { color: var(--muted); font-size: 14px; }
 
-    /* ---------- Topo ---------- */
-    .topo {
-      position: sticky; top: 0; z-index: 50;
-      height: var(--altura-topo);
-      background: var(--marrom);
-      color: var(--creme);
-      padding: 0 16px 6px;
-      display: flex; align-items: center; justify-content: space-between;
-    }
-    /* Listra de toldo: identifica a cantina e separa o topo do conteúdo */
-    .topo::after {
-      content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 6px;
-      background: repeating-linear-gradient(90deg, var(--vermelho) 0 22px, var(--creme) 22px 44px);
-    }
-    .marca { display: flex; align-items: center; gap: 12px; min-width: 0; }
-    .marca-selo {
-      width: 40px; height: 40px; flex: none;
-      border-radius: 50%;
-      background: var(--vermelho);
-      border: 2px solid var(--mostarda);
-      color: var(--creme);
-      display: flex; align-items: center; justify-content: center;
-      font-size: 1.05rem;
-    }
-    .marca-nome { font-family: var(--f-titulo); font-weight: 800; font-size: 1.45rem; line-height: 1; letter-spacing: .02em; }
-    .marca-sub { display: block; font-size: .75rem; color: var(--linha); margin-top: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  /* ---------- Cardápio ---------- */
+  .cab { display: flex; align-items: flex-end; justify-content: space-between; gap: 8px; }
+  .cab h1 { margin: 0; font-size: 30px; font-weight: 800; line-height: 1.05; }
+  .cab p { margin: 6px 0 0; font-size: 14px; color: var(--muted); max-width: 22ch; line-height: 1.35; }
+  .cab .figura { position: relative; width: 150px; height: 150px; flex: none; margin-bottom: -6px; }
+  .cab .figura img { width: 100%; height: 100%; }
+  .placa { position: absolute; left: 49%; top: 62%; transform: translate(-50%, -50%); text-align: center; color: #26262a; font-weight: 800; font-size: 11px; line-height: 1.1; letter-spacing: .02em; }
+  .placa b { display: block; font-size: 19px; color: var(--red); }
+  .item { display: grid; grid-template-columns: 64px minmax(0, 1fr) auto; gap: 12px; align-items: center; background: var(--surface); border: 1px solid var(--line); border-radius: 22px; padding: 12px; }
+  .item .foto { width: 64px; height: 64px; border-radius: 20px; background: var(--surface-2); display: grid; place-items: center; }
+  .item .foto img, .item .foto svg { width: 54px; height: 54px; object-fit: contain; filter: drop-shadow(0 3px 4px rgba(0,0,0,.45)); }
+  .item h3 { margin: 0; font-size: 16px; font-weight: 700; }
+  .item p { margin: 2px 0 0; font-size: 12px; color: var(--muted); }
+  .item .preco { font-size: 15px; font-weight: 800; margin-top: 4px; font-variant-numeric: tabular-nums; }
+  .item.esgotado .foto, .item.esgotado h3, .item.esgotado .preco { opacity: .45; }
+  .troca { display: grid; justify-items: center; gap: 4px; font-size: 11px; color: var(--muted); }
+  .switch { width: 48px; height: 28px; border-radius: 999px; border: 0; padding: 3px; background: var(--surface-2); cursor: pointer; display: flex; justify-content: flex-start; }
+  .switch::after { content: ""; width: 22px; height: 22px; border-radius: 50%; background: #8a8488; }
+  .switch[aria-checked="true"] { background: var(--grad); justify-content: flex-end; }
+  .switch[aria-checked="true"]::after { background: #fff; }
 
-    .acoes-topo { display: flex; gap: 8px; }
-    .btn-topo {
-      width: 44px; height: 44px; border-radius: 50%;
-      display: flex; align-items: center; justify-content: center;
-      background: transparent; color: var(--creme);
-      border: 2px solid rgba(244, 232, 209, .35);
-      transition: background-color .15s, border-color .15s;
-    }
-    .btn-topo:hover { border-color: var(--mostarda); }
-    .btn-topo:active { background: rgba(244, 232, 209, .18); }
+  /* ---------- Perfil ---------- */
+  .perfil-card { position: relative; margin-top: 30px; border-radius: 28px; background: var(--grad); padding: 22px 18px; min-height: 164px; display: grid; align-content: center; gap: 6px; }
+  .perfil-card .copy { max-width: 56%; display: grid; gap: 6px; }
+  .perfil-card small { font-size: 12px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: #ffd9d6; }
+  .perfil-card strong { font-size: 27px; font-weight: 800; letter-spacing: -.02em; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .perfil-card .selo { justify-self: start; background: rgba(255,255,255,.18); color: #fff; }
+  .perfil-card img { position: absolute; right: 4px; bottom: 0; width: 188px; height: 188px; pointer-events: none; }
+  .grade { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+  .tile { background: var(--surface); border: 1px solid var(--line); border-radius: 22px; padding: 14px; display: grid; gap: 4px; }
+  .tile small { font-size: 12px; color: var(--muted); }
+  .tile b { font-size: 24px; font-weight: 800; font-variant-numeric: tabular-nums; }
+  .tile.alerta b { color: #ff7773; }
+  .semana { background: var(--surface); border: 1px solid var(--line); border-radius: 24px; padding: 18px; display: grid; gap: 14px; }
+  .semana .linha { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+  .semana h2 { margin: 0; font-size: 17px; }
+  .semana .linha span { font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; }
+  .barras { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 8px; align-items: end; height: 140px; }
+  .barra { display: grid; justify-items: center; align-content: end; gap: 6px; height: 100%; }
+  .barra i { display: block; width: 100%; border-radius: 10px; background: var(--surface-2); }
+  .barra.hoje i { background: var(--grad); }
+  .barra span { font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums; }
+  .barra em { font-style: normal; font-size: 12px; font-weight: 600; color: var(--muted); }
+  .barra.hoje em { color: var(--fg); }
 
-    /* ---------- Busca ---------- */
-    .busca-campo {
-      width: 100%;
-      background: var(--papel);
-      border: 2px solid var(--marrom);
-      border-radius: 12px;
-      padding: 10px 14px 10px 40px;
-      font-size: .95rem; color: var(--marrom);
-    }
-    .busca-campo::placeholder { color: var(--marrom-suave); }
-    .busca-campo:focus { outline: none; box-shadow: 0 0 0 3px var(--mostarda); }
+  /* ---------- Login ---------- */
+  /* Topo com a marca e o palco da coxinha; embaixo, uma folha escura com o formulário (estilo app). */
+  .login { min-height: 100svh; background: radial-gradient(120% 60% at 50% 0%, #8f1512 0%, rgba(110,14,12,.55) 45%, var(--bg) 78%); }
+  .login-col { max-width: 460px; margin: 0 auto; min-height: 100svh; display: flex; flex-direction: column; }
+  /* A folha do formulário cresce até o fim da tela (flex: 1), então ela sobe e fica logo abaixo da coxinha. */
+  .login-topo { flex: none; display: grid; justify-items: center; align-content: start; gap: 10px; padding: 30px max(20px, env(safe-area-inset-left, 0px)) 22px; }
+  .marca { font-family: "Lilita One", "Outfit", system-ui, sans-serif; font-size: 44px; line-height: 1; letter-spacing: .01em; color: #fff; text-shadow: 0 3px 0 rgba(0,0,0,.35); }
+  .tag-painel { font-size: 11px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; color: #ffd9d6; background: rgba(0,0,0,.28); padding: 5px 11px; border-radius: 999px; }
+  /* Palco: disco de luz atrás e sombra no chão, para a coxinha não ficar flutuando. */
+  .palco { position: relative; width: min(62vw, 238px); aspect-ratio: 1; margin-top: 6px; display: grid; place-items: center; }
+  .palco::before { content: ""; position: absolute; inset: 2%; border-radius: 50%; background: radial-gradient(circle at 50% 38%, rgba(255,150,110,.55), rgba(229,37,33,.35) 58%, rgba(168,17,14,.12) 100%); box-shadow: inset 0 0 0 1px rgba(255,255,255,.12); }
+  /* A sombra fica na altura dos sapatos (cerca de 14% acima da base do palco), para ela pisar no chão. */
+  .palco::after { content: ""; position: absolute; left: 20%; right: 20%; bottom: 11.5%; height: 18px; border-radius: 50%; background: radial-gradient(closest-side, rgba(0,0,0,.7), rgba(0,0,0,.25) 65%, transparent); }
+  .palco img { position: relative; z-index: 1; width: 86%; }
+  .balao { position: absolute; z-index: 2; right: -14%; top: 6%; max-width: 142px; background: #fff; color: #1a0504; font-weight: 700; font-size: 14px; line-height: 1.2; padding: 10px 13px; border-radius: 18px 18px 18px 4px; box-shadow: 0 8px 20px rgba(0,0,0,.35); }
+  .folha { flex: 1; align-content: start; background: #141416; border-radius: 32px 32px 0 0; border: 1px solid var(--line); border-bottom: 0; padding: 26px max(20px, env(safe-area-inset-left, 0px)) calc(20px + env(safe-area-inset-bottom, 0px)); display: grid; gap: 14px; }
+  .folha h1 { margin: 0; font-size: 26px; font-weight: 800; line-height: 1.1; }
+  .folha .sub { margin: -8px 0 0; color: var(--muted); font-size: 15px; }
+  .form { display: grid; gap: 12px; }
+  .form label { display: grid; gap: 6px; font-size: 13px; color: var(--muted); font-weight: 600; }
+  .campo { position: relative; display: flex; align-items: center; }
+  .campo > svg { position: absolute; left: 16px; width: 20px; height: 20px; color: var(--muted); pointer-events: none; }
+  .campo input { width: 100%; background: var(--surface); border: 1px solid var(--line); border-radius: 16px; color: var(--fg); padding: 15px 48px 15px 46px; font-size: 16px; }
+  .campo input::placeholder { color: #6c666a; }
+  .olho { position: absolute; right: 6px; width: 40px; height: 40px; border: 0; background: none; color: var(--muted); display: grid; place-items: center; cursor: pointer; border-radius: 12px; }
+  .olho svg { width: 20px; height: 20px; }
+  .opcoes { display: flex; justify-content: space-between; align-items: center; gap: 10px; font-size: 13px; }
+  .opcoes label { display: flex; align-items: center; gap: 8px; color: var(--muted); font-weight: 500; }
+  .opcoes input { accent-color: var(--red); width: 17px; height: 17px; }
+  .opcoes a { color: #ff7773; font-weight: 600; text-decoration: none; }
+  .btn-seta { display: flex; align-items: center; justify-content: center; gap: 8px; }
+  .btn-seta svg { width: 18px; height: 18px; }
+  .rodape-login { margin: 0; text-align: center; font-size: 11px; line-height: 1.5; color: #6f696c; letter-spacing: .03em; }
 
-    /* ---------- Régua de etapas (substitui as abas) ---------- */
-    .trilho {
-      position: sticky; top: var(--altura-topo); z-index: 40;
-      background: var(--creme);
-      padding: 12px 16px 10px;
-    }
-    .etapas {
-      display: grid; grid-template-columns: repeat(4, 1fr);
-      background: var(--papel);
-      border: 2px solid var(--marrom);
-      border-radius: 14px;
-      overflow: hidden;
-      box-shadow: 0 3px 0 var(--marrom);
-    }
-    .aba {
-      position: relative;
-      padding: 9px 2px 12px;
-      background: transparent; color: var(--marrom-suave);
-      font-size: .74rem; font-weight: 700; line-height: 1.2;
-      border-left: 1px solid var(--linha);
-      transition: background-color .15s, color .15s;
-    }
-    .aba:first-child { border-left: 0; }
-    .aba .qtd { display: block; font-family: var(--f-titulo); font-size: 1.55rem; font-weight: 800; line-height: 1.05; color: var(--marrom); }
-    /* Faixa na cor da etapa: a mesma cor do canhoto da comanda */
-    .aba::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 5px; background: var(--cor-etapa); }
-    .aba-recebido   { --cor-etapa: var(--vermelho); }
-    .aba-em_preparo { --cor-etapa: var(--laranja); }
-    .aba-pronto     { --cor-etapa: var(--verde); }
-    .aba-retirado   { --cor-etapa: var(--cinza); }
-    .aba.ativa { background: var(--marrom); color: var(--creme); }
-    .aba.ativa .qtd { color: var(--mostarda); }
-    /* Pedido novo chegou enquanto a funcionária olhava outra etapa */
-    .aba.alerta:not(.ativa) { animation: piscar 1s ease-in-out infinite; }
-    @keyframes piscar { 50% { background: var(--mostarda); } }
+  /* ---------- Barra de navegação flutuante (vidro) com o mascote ---------- */
+  .nav { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(16px + env(safe-area-inset-bottom, 0px)); width: min(calc(100% - 32px), 400px); display: flex; gap: 4px; padding: 8px; border-radius: 30px; background: rgba(40,40,46,.55); border: 1px solid rgba(255,255,255,.16); backdrop-filter: blur(20px) saturate(150%); -webkit-backdrop-filter: blur(20px) saturate(150%); box-shadow: 0 12px 34px rgba(0,0,0,.5); z-index: 10; }
+  .nav button { flex: 1; display: grid; justify-items: center; gap: 4px; padding: 8px 6px 9px; border: 0; border-radius: 22px; background: transparent; color: #c9c3c6; font-size: 12px; font-weight: 600; cursor: pointer; }
+  /* A coxinha aparece de corpo inteiro (com o cardápio, o troféu etc.), sem recorte de rosto. */
+  .nav .mini { width: 54px; height: 54px; border-radius: 20px; background: rgba(255,255,255,.07); display: grid; place-items: center; padding: 3px; }
+  .nav .mini img { width: 100%; height: 100%; object-fit: contain; }
+  .nav button[aria-current="page"] { background: rgba(255,255,255,.12); color: #fff; font-weight: 800; }
+  .nav button[aria-current="page"] .mini { box-shadow: 0 0 0 2px var(--red); background: var(--wine); }
 
-    /* ---------- Comanda ---------- */
-    .grade { align-items: start; }
-    .ticket {
-      position: relative;
-      /* drop-shadow (e não box-shadow) para a sombra acompanhar a borda serrilhada */
-      filter: drop-shadow(0 1px 0 rgba(75, 23, 21, .25)) drop-shadow(0 6px 8px rgba(75, 23, 21, .12));
-      transition: transform .12s;
-    }
-    .ticket:active { transform: scale(.99); }
-    .ticket-papel { background: var(--papel); border-radius: 12px 12px 0 0; }
-    .ticket-serra {
-      height: 9px;
-      background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='18' height='9'%3E%3Cpath d='M0 0h18L9 9z' fill='%23FFFBF2'/%3E%3C/svg%3E") repeat-x left top;
-    }
-
-    /* Canhoto: código e etapa */
-    .ticket-topo {
-      display: flex; align-items: center; justify-content: space-between; gap: 8px;
-      padding: 10px 14px;
-      border-radius: 12px 12px 0 0;
-      background: var(--cor-etapa); color: #fff;
-    }
-    .ticket-cod { font-family: var(--f-titulo); font-weight: 800; font-size: 1.55rem; line-height: 1; letter-spacing: .02em; }
-    .st-recebido  { --cor-etapa: var(--vermelho); }
-    .st-preparo   { --cor-etapa: var(--laranja); }
-    .st-pronto    { --cor-etapa: var(--verde); }
-    .st-retirado  { --cor-etapa: var(--cinza); }
-    .tag-etapa {
-      padding: 3px 10px; border-radius: 999px;
-      font-size: .74rem; font-weight: 800;
-      background: rgba(255, 255, 255, .22); color: #fff;
-      border: 1.5px solid rgba(255, 255, 255, .6);
-    }
-
-    /* Picote entre o canhoto e o pedido, com os dois furos laterais */
-    .ticket-corte { position: relative; border-top: 2px dashed var(--linha); }
-    .ticket-corte::before, .ticket-corte::after {
-      content: ""; position: absolute; top: -9px;
-      width: 16px; height: 16px; border-radius: 50%;
-      background: var(--creme);
-    }
-    .ticket-corte::before { left: -8px; }
-    .ticket-corte::after { right: -8px; }
-
-    .ticket-corpo { padding: 12px 14px 14px; }
-    .ticket-nome { font-family: var(--f-titulo); font-weight: 800; font-size: 1.12rem; line-height: 1.2; color: var(--marrom); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .ticket-nome i { color: var(--vermelho); font-size: .75rem; margin-right: 6px; }
-    .itens-card {
-      display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;
-      font-family: var(--f-recibo); font-size: .86rem; font-weight: 600; line-height: 1.5;
-      white-space: pre-line; margin-top: 8px; color: var(--marrom);
-    }
-
-    .ticket-pagamento { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
-    .tag {
-      display: inline-flex; align-items: center; gap: 4px;
-      padding: 2px 9px; border-radius: 6px; border: 1.5px solid;
-      font-size: .75rem; font-weight: 800;
-    }
-    .pg-pix     { background: #ccfbf1; color: #115e59; border-color: #5eead4; }
-    .pg-credito { background: #f3e8ff; color: #6b21a8; border-color: #d8b4fe; }
-    .pg-debito  { background: #dbeafe; color: #1e40af; border-color: #93c5fd; }
-    .pg-padrao  { background: rgba(251, 175, 23, .22); color: var(--marrom); border-color: var(--mostarda); }
-    .pg-pendente { background: #f0fdfa; color: #115e59; border-color: #5eead4; }
-
-    /* Total com pontilhado, como no recibo */
-    .ticket-total { display: flex; align-items: baseline; gap: 8px; margin-top: 12px; }
-    .ticket-total-rotulo { font-size: .85rem; font-weight: 700; color: var(--marrom-suave); }
-    .ticket-total-pontos { flex: 1; border-bottom: 2px dotted var(--linha); transform: translateY(-4px); }
-    .ticket-total-valor { font-family: var(--f-titulo); font-weight: 800; font-size: 1.45rem; line-height: 1; color: var(--vermelho); white-space: nowrap; }
-
-    /* Botões com relevo: dá para sentir o toque, mesmo com a mão suja de cozinha */
-    .acoes { display: flex; gap: 8px; margin-top: 14px; }
-    .btn-principal, .btn-pix, .btn-mais, .btn-salvar, .btn-item, .menu-acao {
-      min-height: 48px; border-radius: 12px; font-weight: 800; font-size: .92rem;
-      display: flex; align-items: center; justify-content: center; gap: 8px;
-      border: 2px solid var(--marrom);
-      transition: transform .08s, box-shadow .08s;
-    }
-    .btn-principal { flex: 1; background: var(--mostarda); color: var(--marrom); box-shadow: 0 3px 0 var(--marrom); }
-    .btn-pix { width: 100%; margin-top: 8px; background: #0f766e; color: #fff; box-shadow: 0 3px 0 var(--marrom); }
-    .btn-mais { width: 48px; background: var(--papel); color: var(--marrom); box-shadow: 0 3px 0 var(--marrom); }
-    .btn-principal:active, .btn-pix:active, .btn-mais:active, .btn-salvar:active { transform: translateY(3px); box-shadow: 0 0 0 var(--marrom); }
-    .btn-mais[aria-expanded="true"] { background: var(--marrom); color: var(--creme); }
-    .btn-concluido { flex: 1; min-height: 48px; border-radius: 12px; border: 2px dashed var(--cinza); color: var(--marrom-suave); font-weight: 800; font-size: .92rem; display: flex; align-items: center; justify-content: center; gap: 8px; }
-    .btn-busy { opacity: .55; pointer-events: none; }
-
-    /* Menu "⋯": horário, WhatsApp e voltar etapa */
-    .menu-card { display: none; }
-    .menu-card.aberto { display: block; }
-    .ticket-menu { margin-top: 12px; padding-top: 12px; border-top: 2px dashed var(--linha); font-size: .8rem; color: var(--marrom-suave); }
-    .menu-acoes { display: flex; gap: 8px; margin-top: 10px; }
-    .menu-acao { flex: 1; min-height: 44px; background: var(--papel); color: var(--marrom); font-size: .82rem; border-width: 1.5px; border-color: var(--linha); }
-    .menu-acao-zap { color: #15803d; }
-
-    /* Vazio: pede para esperar, sem enfeite extra */
-    .vazio { text-align: center; padding: 64px 16px; color: var(--marrom-suave); font-weight: 600; }
-    .vazio i { display: block; font-size: 2.6rem; margin-bottom: 12px; color: var(--linha); }
-
-    /* ---------- Itens do cardápio ---------- */
-    .cat-titulo {
-      font-family: var(--f-titulo); font-weight: 800; font-size: 1.25rem; color: var(--marrom);
-      margin: 22px 0 10px; padding-bottom: 6px;
-      border-bottom: 3px double var(--linha);
-    }
-    .item {
-      background: var(--papel);
-      border: 2px solid var(--marrom);
-      border-left-width: 8px;
-      border-radius: 14px;
-      padding: 12px 14px;
-      box-shadow: 0 3px 0 rgba(75, 23, 21, .85);
-    }
-    .item-ok  { border-left-color: var(--verde); }
-    .item-off { border-left-color: var(--vermelho); background: #fff3ee; }
-    .item-nome { min-width: 0; font-family: var(--f-titulo); font-weight: 800; font-size: 1.05rem; color: var(--marrom); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .item-off .item-nome { color: var(--marrom-suave); text-decoration: line-through; }
-    .tag-esgotado { background: #fee2e2; color: #991b1b; border-color: #fca5a5; flex: none; }
-    .item-preco { display: flex; gap: 8px; margin-top: 12px; }
-    .campo-preco { position: relative; flex: 1; }
-    .campo-preco span { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); font-size: .9rem; font-weight: 800; color: var(--marrom-suave); }
-    .campo-preco input {
-      width: 100%; min-height: 48px;
-      background: #fff; border: 2px solid var(--marrom); border-radius: 12px;
-      padding: 0 12px 0 40px; font-family: var(--f-recibo); font-size: 1rem; font-weight: 700; color: var(--marrom);
-    }
-    .campo-preco input:focus { outline: none; box-shadow: 0 0 0 3px var(--mostarda); }
-    .btn-salvar { padding: 0 18px; background: var(--mostarda); color: var(--marrom); box-shadow: 0 3px 0 var(--marrom); }
-    .btn-item { width: 100%; margin-top: 10px; min-height: 44px; font-size: .85rem; border-width: 2px; background: var(--papel); }
-    .btn-item-esgotar { border-color: #b91c1c; color: #b91c1c; }
-    .btn-item-voltar  { border-color: var(--verde); color: #fff; background: var(--verde); }
-
-    /* ---------- Aviso ---------- */
-    #toast {
-      position: fixed; left: 50%; bottom: 20px; transform: translate(-50%, 140px);
-      background: var(--marrom); color: var(--creme);
-      border-left: 6px solid var(--mostarda);
-      padding: 12px 18px; border-radius: 12px; font-size: .92rem; font-weight: 700;
-      box-shadow: 0 8px 20px rgba(75, 23, 21, .3);
-      transition: transform .25s; z-index: 60; max-width: 90vw;
-    }
-    #toast.show { transform: translate(-50%, 0); }
-
-    @media (min-width: 768px) {
-      .topo { padding-left: max(24px, calc((100vw - 72rem) / 2 + 16px)); padding-right: max(24px, calc((100vw - 72rem) / 2 + 16px)); }
-      .aba { font-size: .85rem; padding-top: 11px; }
-      .aba .qtd { font-size: 1.8rem; }
-    }
-
-    @media (prefers-reduced-motion: reduce) {
-      .aba.alerta:not(.ativa) { animation: none; background: var(--mostarda); }
-      .ticket, .btn-principal, .btn-pix, .btn-mais, .btn-salvar, #toast { transition: none; }
-    }
-  </style>
+  /* ---------- Acréscimos do painel real ---------- */
+  #toast { position: fixed; left: 50%; bottom: calc(150px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); width: max-content; max-width: min(92vw, 420px); background: #fff; color: #1a0504; font-weight: 700; font-size: 14px; line-height: 1.3; padding: 12px 16px; border-radius: 16px; box-shadow: 0 10px 30px rgba(0,0,0,.5); z-index: 30; opacity: 0; pointer-events: none; }
+  #toast.show { opacity: 1; }
+  .erro-login { margin: 0; min-height: 18px; font-size: 13px; color: #ff7773; font-weight: 600; }
+  .btn-busy { opacity: .6; pointer-events: none; }
+  .busca { display: flex; }
+  .busca input { width: 100%; background: var(--surface); border: 1px solid var(--line); border-radius: 16px; color: var(--fg); padding: 13px 16px; font-size: 16px; }
+  .busca input::placeholder { color: #6c666a; }
+  .chip { position: relative; }
+  .chip.alerta::after { content: ""; position: absolute; top: 9px; right: 11px; width: 9px; height: 9px; border-radius: 50%; background: var(--red); animation: pulsar-vermelho 1.5s ease-out infinite; }
+  @keyframes pulsar-vermelho { 0% { box-shadow: 0 0 0 0 rgba(229,37,33,.7); } 70% { box-shadow: 0 0 0 8px rgba(229,37,33,0); } 100% { box-shadow: 0 0 0 0 rgba(229,37,33,0); } }
+  @media (prefers-reduced-motion: reduce) { .chip.alerta::after { animation: none; } }
+  .mais { width: 34px; height: 34px; border-radius: 12px; border: 0; background: var(--surface-2); color: var(--fg); display: grid; place-items: center; cursor: pointer; flex: none; }
+  .mais svg { width: 18px; height: 18px; }
+  .pedido header .pill { margin-left: auto; }
+  .menu-card { display: none; gap: 10px; background: var(--surface-2); border-radius: 16px; padding: 12px; font-size: 13px; color: var(--muted); }
+  .menu-card.aberto { display: grid; }
+  .menu-acoes { display: flex; flex-wrap: wrap; gap: 8px; }
+  .menu-acao { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--line); background: var(--surface); color: var(--fg); border-radius: 12px; padding: 9px 12px; font: 600 13px var(--font); cursor: pointer; text-decoration: none; }
+  .btn-pix { width: 100%; border: 1px solid rgba(251,175,23,.5); background: rgba(251,175,23,.12); color: var(--mostarda); border-radius: 16px; padding: 13px; font-weight: 700; font-size: 15px; cursor: pointer; }
+  .btn-concluido { text-align: center; padding: 13px; border-radius: 16px; background: var(--surface-2); color: var(--muted); font-weight: 700; }
+  .espera { margin: -6px 0 0; font-size: 12px; color: var(--mostarda); font-weight: 600; }
+  /* Itens do cardápio: foto (ou inicial), nome, chave No ar/Esgotado e a linha do preço */
+  .foto-ini { width: 54px; height: 54px; border-radius: 16px; display: grid; place-items: center; font-weight: 800; font-size: 24px; color: #fff; background: linear-gradient(135deg, #52525a, #2e2e34); }
+  .item .preco-linha { grid-column: 1 / -1; display: flex; gap: 10px; align-items: center; }
+  .campo-preco { flex: 1; display: flex; align-items: center; gap: 6px; background: var(--surface-2); border: 1px solid var(--line); border-radius: 14px; padding: 0 12px; }
+  .campo-preco span { color: var(--muted); font-weight: 700; }
+  .campo-preco input { width: 100%; background: none; border: 0; color: var(--fg); font-size: 16px; font-weight: 800; padding: 11px 0; font-variant-numeric: tabular-nums; }
+  .btn-salvar { border: 0; border-radius: 14px; background: var(--grad); color: #fff; font-weight: 700; font-size: 14px; padding: 12px 18px; cursor: pointer; }
+  .item.esgotado .campo-preco { opacity: .6; }
+  .item.btn-busy { opacity: .6; }
+  .barra span { font-size: 10px; }
+</style>
 </head>
-<body class="min-h-screen flex flex-col select-none">
+<body>
 
-  <!-- Cabeçalho Fixo -->
+<!-- ================= LOGIN ================= -->
+<section class="login" id="v-login" data-view="login" aria-label="Entrar">
+  <div class="login-col">
+    <div class="login-topo">
+      <div class="marca">Snack</div>
+      <span class="tag-painel">Painel da cozinha</span>
+      <div class="palco">
+        <img src="assets/coxinha-acenando.webp" alt="Coxinha acenando de boas-vindas">
+        <div class="balao">Oi! Bora começar o turno?</div>
+      </div>
+    </div>
+    <div class="folha">
+      <h1>Bem-vindo de volta</h1>
+      <p class="sub">Entre para ver os pedidos de hoje</p>
+      <form class="form" id="form-login" autocomplete="off">
+        <label for="usuario">Seu nome (opcional)
+          <span class="campo">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 20c1-4 4-6 8-6s7 2 8 6"/></svg>
+            <input id="usuario" type="text" placeholder="Como devo te chamar?" maxlength="30" autocomplete="nickname">
+          </span>
+        </label>
+        <label for="senha">Chave do painel
+          <span class="campo">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="9" rx="2.5"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>
+            <input id="senha" type="password" placeholder="Digite a chave" autocomplete="current-password">
+            <button class="olho" type="button" id="olho" aria-label="Mostrar a chave" aria-pressed="false">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>
+            </button>
+          </span>
+        </label>
+        <div class="opcoes">
+          <label for="lembrar"><input id="lembrar" type="checkbox" checked>Lembrar neste aparelho</label>
+          <a href="#" id="esqueci">Esqueci a chave</a>
+        </div>
+        <p class="erro-login" id="erro-login" role="alert"></p>
+        <button class="btn btn-seta" type="submit" id="btn-entrar">Entrar
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+        </button>
+      </form>
+      <p class="rodape-login">Painel da cozinha · versão 1.0</p>
+    </div>
+  </div>
+</section>
+
+<!-- ================= PEDIDOS ================= -->
+<main class="app" id="v-pedidos" data-view="pedidos" hidden>
   <header class="topo">
-    <div class="marca">
-      <div class="marca-selo">
-        <i class="fas fa-hamburger"></i>
-      </div>
-      <div class="min-w-0">
-        <h1 class="marca-nome">Snack</h1>
-        <span id="subtitulo" class="marca-sub">Gestor de Pedidos</span>
-      </div>
+    <img class="avatar" src="assets/coxinha-aponta.jpg" alt="Coxinha, mascote da cantina">
+    <div>
+      <h1 id="saud-titulo">Oi, equipe!</h1>
+      <p id="saud-data"></p>
     </div>
-
-    <div class="acoes-topo">
-      <button onclick="alternarVisao()" id="btn-visao" class="btn-topo" title="Itens do cardápio" aria-label="Itens do cardápio">
-        <i class="fas fa-utensils text-xs"></i>
-      </button>
-      <button id="btn-busca" onclick="alternarBusca()" class="btn-topo" title="Buscar" aria-label="Buscar">
-        <i class="fas fa-search text-xs"></i>
-      </button>
-      <button onclick="recarregar()" class="btn-topo" title="Recarregar" aria-label="Recarregar">
-        <i class="fas fa-sync-alt text-xs"></i>
-      </button>
-    </div>
+    <button class="sino" type="button" id="btn-busca" aria-label="Buscar pedido" aria-expanded="false">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="6.5"/><path d="M20 20l-4-4"/></svg>
+    </button>
   </header>
-
-  <!-- Busca: recolhida por padrão para não ocupar espaço no celular -->
-  <div id="area-busca" class="hidden px-4 pt-3 max-w-6xl mx-auto w-full">
-    <div class="relative w-full sm:w-80">
-      <i class="fas fa-search absolute left-3.5 top-3.5 text-[#8A4B4B] text-sm"></i>
-      <input type="text" id="busca" oninput="renderizar()" placeholder="Buscar por nome, # ou item..." class="busca-campo">
-    </div>
+  <div class="busca" id="area-busca" hidden>
+    <input id="busca" type="search" placeholder="Buscar por código, nome ou item" aria-label="Buscar pedido">
   </div>
 
-  <!-- Etapas do pedido: mostram a contagem e filtram a lista -->
-  <div id="trilho" class="trilho">
-    <nav id="abas" class="etapas max-w-6xl mx-auto w-full" aria-label="Etapas do pedido"></nav>
-  </div>
-
-  <!-- Lista de Pedidos -->
-  <main id="view-pedidos" class="flex-1 px-4 pb-8 pt-3 max-w-6xl mx-auto w-full">
-    <div id="grid-pedidos" class="grade grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"></div>
-  </main>
-
-  <!-- Itens do cardápio: preço e "esgotado". Grava pelo n8n (N8N_ITEM_URL), nunca direto na planilha -->
-  <section id="view-itens" class="hidden flex-1 px-4 pb-8 pt-1 max-w-6xl mx-auto w-full">
-    <div id="lista-itens"></div>
+  <section class="destaque-wrap" aria-label="Pedido em destaque">
+    <div class="anuncio"><h2 id="anuncio-titulo">Tudo em dia!</h2><p id="anuncio-sub">Sem pedidos novos agora</p></div>
+    <div class="sombra-sentada"></div>
+    <img class="sentada" src="assets/coxinha-sentada.webp" alt="Coxinha sentada na borda do cartão, apontando para baixo">
+    <div class="destaque" id="destaque-card"></div>
   </section>
 
-  <div id="toast" role="status" aria-live="polite"></div>
-  <audio id="som-alerta" src="https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3" preload="auto"></audio>
+  <section class="resumo" aria-label="Resumo do dia">
+    <div class="linha">
+      <div><small>Vendido hoje</small><strong id="res-valor">R$ 0,00</strong></div>
+      <span class="selo" id="res-selo"></span>
+    </div>
+    <div class="meta" id="res-barra" role="progressbar" aria-valuemin="0" aria-label="Meta de pedidos do dia"><i></i></div>
+    <div class="meta-txt"><span id="res-txt1"></span><span id="res-txt2"></span></div>
+  </section>
 
-  <script>
-    // Colunas da planilha (aba de pedidos), na ordem:
-    // A Data | B WhatsApp | C Itens | D Total | E Pagamento | F Código | G Status | H Nome | I Pedido ID | J Situação pagamento
-    // Status gravado como: recebido | em_preparo | pronto | retirado
-    const CFG = window.CONFIG || {};
+  <section aria-label="Pedidos">
+    <div class="secao"><h2 id="titulo-lista">Pedidos</h2><span id="contagem"></span></div>
+    <div class="chips" id="filtros" role="group" aria-label="Filtrar por etapa"></div>
+    <div class="lista" id="lista"></div>
+  </section>
+</main>
 
-    // `borda` e `pill` agora são classes do CSS acima: a cor do canhoto da comanda e a da régua de etapas
-    const STATUS = {
-      recebido:   { label: 'Recebido',   borda: 'st-recebido' },
-      em_preparo: { label: 'Em preparo', borda: 'st-preparo' },
-      pronto:     { label: 'Pronto',     borda: 'st-pronto' },
-      retirado:   { label: 'Retirado',   borda: 'st-retirado' }
-    };
-    const PROXIMO = {
-      recebido:   { para: 'em_preparo', texto: 'Iniciar preparo',    icone: 'fa-fire' },
-      em_preparo: { para: 'pronto',     texto: 'Marcar pronto',      icone: 'fa-bell' },
-      pronto:     { para: 'retirado',   texto: 'Confirmar retirada', icone: 'fa-check' }
-    };
-    const ANTERIOR = { em_preparo: 'recebido', pronto: 'em_preparo', retirado: 'pronto' };
+<!-- ================= CARDÁPIO ================= -->
+<main class="app" id="v-cardapio" data-view="cardapio" hidden>
+  <header class="cab">
+    <div>
+      <h1>Cardápio</h1>
+      <p>Marque o que acabou e ajuste os preços.</p>
+    </div>
+    <div class="figura">
+      <img src="assets/coxinha-cardapio.webp" alt="Coxinha segurando uma placa de cardápio">
+      <div class="placa">NO AR<b id="qtd-no-ar">0</b></div>
+    </div>
+  </header>
+  <div class="chips" id="categorias" role="group" aria-label="Categorias"></div>
+  <section class="lista" id="itens-cardapio" style="margin-top:0" aria-label="Itens"></section>
+</main>
 
-    let pedidosAtuais = [];
-    const ABAS = ['recebido', 'em_preparo', 'pronto', 'retirado'];
-    let abaAtual = 'recebido';
-    let abaComAlerta = false;       // pedido novo chegou enquanto a funcionária olhava outra aba
-    let conhecidos = null;          // chaves já vistas: o alerta toca só para pedido novo
-    const overrides = {};           // mudanças enviadas que a planilha ainda não refletiu
-    const enviando = new Set();     // pedidos com uma mudança em andamento
-    const menusAbertos = new Set(); // menus "⋯" abertos; guardados fora do HTML porque a lista é redesenhada a cada leitura
+<!-- ================= PERFIL ================= -->
+<main class="app" id="v-perfil" data-view="perfil" hidden>
+  <section class="perfil-card" aria-label="Faturamento de hoje">
+    <div class="copy">
+      <small>Faturamento de hoje</small>
+      <strong id="perf-valor">R$ 0,00</strong>
+      <span class="selo" id="perf-selo"></span>
+    </div>
+    <img src="assets/coxinha-trofeu.webp" alt="Coxinha segurando um troféu">
+  </section>
 
-    function esc(v) {
-      return String(v ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  <section class="grade" aria-label="Números do dia">
+    <div class="tile"><small>Pedidos hoje</small><b id="perf-qtd">0</b></div>
+    <div class="tile"><small>Ticket médio</small><b id="perf-ticket">R$ 0,00</b></div>
+    <div class="tile"><small>Em aberto</small><b id="perf-abertos">0</b></div>
+    <div class="tile"><small>Pix / Balcão</small><b id="perf-pix">0 / 0</b></div>
+  </section>
+
+  <section class="resumo" aria-label="Meta do dia">
+    <div class="linha"><div><small>Meta do dia</small><strong id="perf-meta">0 de 30</strong></div><span class="selo" id="perf-falta"></span></div>
+    <div class="meta"><i id="perf-barra"></i></div>
+  </section>
+
+  <section class="semana" aria-label="Faturamento da semana">
+    <div class="linha"><h2>Faturamento da semana</h2><span id="total-semana"></span></div>
+    <div class="barras" id="barras"></div>
+  </section>
+
+  <button class="btn btn-fantasma" type="button" id="sair">Sair</button>
+</main>
+
+<!-- ================= NAVEGAÇÃO ================= -->
+<nav class="nav" id="nav" aria-label="Navegação principal" hidden>
+  <button type="button" data-ir="pedidos" aria-current="page"><span class="mini"><img src="assets/coxinha-sentada.webp" alt=""></span>Pedidos</button>
+  <button type="button" data-ir="cardapio"><span class="mini"><img src="assets/coxinha-cardapio.webp" alt=""></span>Cardápio</button>
+  <button type="button" data-ir="perfil"><span class="mini"><img src="assets/coxinha-trofeu.webp" alt=""></span>Perfil</button>
+</nav>
+
+<div id="toast" role="status" aria-live="polite"></div>
+<audio id="som-alerta" src="https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3" preload="auto"></audio>
+
+<script>
+
+// Colunas da planilha (aba de pedidos), na ordem:
+// A Data | B WhatsApp | C Itens | D Total | E Pagamento | F Código | G Status | H Nome | I Pedido ID | J Situação pagamento
+// Status gravado como: recebido | em_preparo | pronto | retirado
+const CFG = window.CONFIG || {};
+const META_DIA = Number(CFG.META_PEDIDOS_DIA) || 30;
+
+const FLUXO = ['recebido', 'em_preparo', 'pronto', 'retirado'];
+const ROTULO = { recebido: 'Recebido', em_preparo: 'Em preparo', pronto: 'Pronto', retirado: 'Retirado' };
+const PROXIMO = {
+  recebido:   { para: 'em_preparo', texto: 'Iniciar preparo' },
+  em_preparo: { para: 'pronto',     texto: 'Marcar como pronto' },
+  pronto:     { para: 'retirado',   texto: 'Confirmar retirada' }
+};
+const ANTERIOR = { em_preparo: 'recebido', pronto: 'em_preparo', retirado: 'pronto' };
+// Título e frase acima do cartão em destaque, conforme a etapa do pedido que ele acompanha
+const TITULOS = {
+  recebido:   ['Chegou pedido novo!', 'Toque em iniciar o preparo'],
+  em_preparo: ['Mão na massa!', 'Quando ficar pronto, marque aqui'],
+  pronto:     ['Pedido pronto!', 'Falta o aluno retirar'],
+  retirado:   ['Entregue, boa!', 'Pode seguir para o próximo']
+};
+const SEMANA = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+
+let pedidosAtuais = [];        // do mais novo para o mais antigo
+let filtro = 'recebido';
+let abaComAlerta = false;      // pedido novo chegou enquanto a funcionária olhava outra etapa
+let conhecidos = null;         // chaves já vistas: o alerta toca só para pedido novo
+const overrides = {};          // mudanças enviadas que a planilha ainda não refletiu
+const enviando = new Set();    // pedidos com uma mudança em andamento
+const menusAbertos = new Set();// menus "⋯" abertos; guardados fora do HTML porque a lista é redesenhada a cada leitura
+let destaqueChave = null;      // pedido que o cartão de cima acompanha
+let telaAtual = 'login';
+let timers = [];
+
+// ---------- utilidades ----------
+const esc = (v) => String(v ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const pad = (n) => String(n).padStart(2, '0');
+
+function normStatus(s) {
+  const t = String(s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  if (t.includes('prepar')) return 'em_preparo';
+  if (t.includes('pront')) return 'pronto';
+  if (t.includes('retir')) return 'retirado';
+  return 'recebido';   // vazio ou desconhecido entra na fila
+}
+const normSituacao = (s) => String(s || '').toLowerCase().includes('pago') ? 'pago' : 'pendente';
+const ehPix = (forma) => String(forma || '').toLowerCase().includes('pix');
+
+// "R$ 6,50", "6,50" ou 6.5 viram número (mesma regra do n8n)
+function parseValor(v) {
+  if (typeof v === 'number') return v;
+  let s = String(v ?? '').replace(/[^\d,.-]/g, '');
+  if (s.includes(',')) s = s.replace(/\./g, '').replace(',', '.');
+  const n = parseFloat(s);
+  return Number.isFinite(n) ? n : 0;
+}
+function brl(n) {
+  const [inteiro, centavos] = n.toFixed(2).split('.');
+  return 'R$ ' + inteiro.replace(/\B(?=(\d{3})+(?!\d))/g, '.') + ',' + centavos;
+}
+const preco = (n) => n.toFixed(2).replace('.', ',');
+
+function toast(msg, ms = 3500) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(toast.timer);
+  toast.timer = setTimeout(() => t.classList.remove('show'), ms);
+}
+
+// ---------- chave do painel ----------
+// Os webhooks de status e de item só aceitam chamadas com esta chave (Header Auth no n8n).
+// Ela fica só no navegador de quem entrou, nunca no config.js, que é público.
+// "Lembrar neste aparelho" decide se ela vai para o localStorage ou só para a sessão.
+const CHAVE_STORAGE = 'snackPainelChave';
+const NOME_STORAGE = 'snackPainelNome';
+let chaveMemoria = '';   // reserva para navegador que bloqueia o armazenamento (aba anônima)
+let nomeMemoria = '';
+function lerChave() {
+  try { return sessionStorage.getItem(CHAVE_STORAGE) || localStorage.getItem(CHAVE_STORAGE) || chaveMemoria; } catch { return chaveMemoria; }
+}
+function guardarChave(v, lembrar) {
+  chaveMemoria = v;
+  try {
+    sessionStorage.removeItem(CHAVE_STORAGE); localStorage.removeItem(CHAVE_STORAGE);
+    if (v) (lembrar ? localStorage : sessionStorage).setItem(CHAVE_STORAGE, v);
+  } catch {}
+}
+function lerNome() {
+  try { return sessionStorage.getItem(NOME_STORAGE) || localStorage.getItem(NOME_STORAGE) || nomeMemoria; } catch { return nomeMemoria; }
+}
+function guardarNome(v, lembrar) {
+  nomeMemoria = v;
+  try {
+    sessionStorage.removeItem(NOME_STORAGE); localStorage.removeItem(NOME_STORAGE);
+    if (v) (lembrar ? localStorage : sessionStorage).setItem(NOME_STORAGE, v);
+  } catch {}
+}
+const erroChave = (msg) => Object.assign(new Error(msg), { chave: true });
+
+// POST ao n8n com a chave. Chave recusada (401/403) não altera nada no n8n: limpa a chave e volta ao login.
+async function postarN8n(url, corpo) {
+  const chave = lerChave();
+  if (!chave) { sair('Entre com a chave do painel para salvar alterações.'); throw erroChave('Sem chave'); }
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'X-Painel-Chave': chave },
+    body: JSON.stringify(corpo)
+  });
+  if (res.status === 401 || res.status === 403) {
+    sair('A chave do painel foi recusada. Entre de novo.');
+    throw erroChave('Chave recusada');
+  }
+  if (!res.ok) throw new Error('HTTP ' + res.status);
+  return res;
+}
+
+// ---------- telas ----------
+const telas = [...document.querySelectorAll('[data-view]')];
+const nav = document.getElementById('nav');
+function mostrar(nome) {
+  telaAtual = nome;
+  telas.forEach(t => { t.hidden = t.dataset.view !== nome; });
+  nav.hidden = nome === 'login';
+  nav.querySelectorAll('button').forEach(b => {
+    if (b.dataset.ir === nome) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current');
+  });
+  window.scrollTo(0, 0);
+  if (nome === 'cardapio') carregarItens();
+  if (nome === 'perfil') renderizarPerfil();
+}
+nav.addEventListener('click', (ev) => { const b = ev.target.closest('[data-ir]'); if (b) mostrar(b.dataset.ir); });
+
+function saudacao() {
+  const nome = lerNome();
+  document.getElementById('saud-titulo').textContent = nome ? `Oi, ${nome}!` : 'Oi, equipe!';
+  const d = new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' });
+  document.getElementById('saud-data').textContent = d.charAt(0).toUpperCase() + d.slice(1);
+}
+
+// ---------- login ----------
+const campoSenha = document.getElementById('senha');
+const msgErro = document.getElementById('erro-login');
+document.getElementById('form-login').addEventListener('submit', async (ev) => {
+  ev.preventDefault();
+  const chave = campoSenha.value.trim();
+  msgErro.textContent = '';
+  if (!chave) { msgErro.textContent = 'Digite a chave do painel.'; return; }
+  const botao = document.getElementById('btn-entrar');
+  botao.classList.add('btn-busy');
+  try {
+    // Confere a chave sem mudar nada: o webhook de status responde 403 para chave errada e, com a chave certa,
+    // recusa o corpo vazio (404 ou 400) antes de gravar qualquer coisa.
+    if (CFG.N8N_STATUS_URL) {
+      const res = await fetch(CFG.N8N_STATUS_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-Painel-Chave': chave },
+        body: '{}'
+      });
+      if (res.status === 401 || res.status === 403) { msgErro.textContent = 'Chave incorreta. Confira e tente de novo.'; return; }
     }
+    const lembrar = document.getElementById('lembrar').checked;
+    guardarChave(chave, lembrar);
+    guardarNome(document.getElementById('usuario').value.trim(), lembrar);
+    campoSenha.value = '';
+    abrir();
+  } catch (err) {
+    console.error(err);
+    msgErro.textContent = 'Não consegui falar com o servidor. Confira a internet e tente de novo.';
+  } finally {
+    botao.classList.remove('btn-busy');
+  }
+});
+document.getElementById('olho').addEventListener('click', (ev) => {
+  const aparece = campoSenha.type === 'password';
+  campoSenha.type = aparece ? 'text' : 'password';
+  ev.currentTarget.setAttribute('aria-pressed', String(aparece));
+  ev.currentTarget.setAttribute('aria-label', aparece ? 'Ocultar a chave' : 'Mostrar a chave');
+});
+document.getElementById('esqueci').addEventListener('click', (ev) => {
+  ev.preventDefault();
+  toast('A chave é a da credencial "X-Painel-Chave" no n8n. Peça para quem administra o n8n.', 6000);
+});
 
-    function normStatus(s) {
-      const t = String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
-      if (t.includes('prepar')) return 'em_preparo';
-      if (t.includes('pront')) return 'pronto';
-      if (t.includes('retir')) return 'retirado';
-      return 'recebido';   // vazio ou desconhecido entra na fila
-    }
+function abrir() {
+  saudacao();
+  mostrar('pedidos');
+  iniciarAtualizacoes();
+}
+function sair(msg) {
+  guardarChave('');
+  pararAtualizacoes();
+  destaqueChave = null;
+  mostrar('login');
+  if (msg) msgErro.textContent = msg;
+}
+document.getElementById('sair').addEventListener('click', () => sair());
 
-    function normSituacao(s) {
-      return String(s || '').toLowerCase().includes('pago') ? 'pago' : 'pendente';
-    }
+function iniciarAtualizacoes() {
+  pararAtualizacoes();
+  carregarPlanilha();
+  timers.push(setInterval(carregarPlanilha, 4000));
+  timers.push(setInterval(() => { if (telaAtual === 'cardapio') carregarItens(); }, 15000));
+}
+function pararAtualizacoes() { timers.forEach(clearInterval); timers = []; }
 
-    function ehPix(forma) {
-      return String(forma || '').toLowerCase().includes('pix');
-    }
+// ---------- leitura da planilha de pedidos ----------
+window.google = {
+  visualization: {
+    Query: {
+      setResponse: function (resposta) {
+        if (!resposta || !resposta.table || !resposta.table.rows) return;
+        const lista = resposta.table.rows.map(r => {
+          const c = r.c || [];
+          const val = (idx) => c[idx] ? (c[idx].f || c[idx].v || '') : '';
+          const chave = String(val(8) || (val(5) + '_' + val(0)));
+          let status = normStatus(val(6));
+          let situacao = normSituacao(val(9));
 
-    function corPagamento(forma) {
-      const f = (forma || '').toLowerCase();
-      if (f.includes('pix')) return 'pg-pix';
-      if (f.includes('crédito') || f.includes('credito')) return 'pg-credito';
-      if (f.includes('débito') || f.includes('debito')) return 'pg-debito';
-      return 'pg-padrao';
-    }
+          // Aplica o que foi enviado e ainda não apareceu na planilha; some quando a planilha alcança
+          const ov = overrides[chave];
+          if (ov) {
+            if (ov.status) { if (ov.status === status) delete ov.status; else status = ov.status; }
+            if (ov.situacao) { if (ov.situacao === situacao) delete ov.situacao; else situacao = ov.situacao; }
+            if (!ov.status && !ov.situacao) delete overrides[chave];
+          }
+          return {
+            chave, pedidoId: val(8), data: String(val(0)), numero: val(1), pedido: String(val(2)), valor: val(3),
+            pagamento: String(val(4)), codigo: val(5), status, situacao, nome: String(val(7))
+          };
+        }).filter(p => (p.codigo || p.pedidoId) && String(p.codigo) !== 'Código de Retirada');
 
-    function formatarValor(v) {
-      if (v === undefined || v === null || v === '') return 'R$ 0,00';
-      const str = String(v).trim();
-      if (str.startsWith('R$')) return str;
-      const num = parseFloat(str.replace(',', '.'));
-      return isNaN(num) ? str : 'R$ ' + num.toFixed(2).replace('.', ',');
-    }
-
-    function mudarAba(nova) {
-      abaAtual = nova;
-      if (nova === 'recebido') abaComAlerta = false;
-      renderizar();
-    }
-
-    // A busca fica recolhida para liberar espaço; ao fechar, o termo é limpo para não esconder pedidos sem a pessoa perceber
-    function alternarBusca() {
-      const area = document.getElementById('area-busca');
-      const input = document.getElementById('busca');
-      const abrir = area.classList.contains('hidden');
-      area.classList.toggle('hidden', !abrir);
-      if (abrir) input.focus(); else { input.value = ''; renderizar(); }
-    }
-
-    function toast(msg) {
-      const t = document.getElementById('toast');
-      t.textContent = msg;
-      t.classList.add('show');
-      clearTimeout(toast.timer);
-      toast.timer = setTimeout(() => t.classList.remove('show'), 3500);
-    }
-
-    /* ---- chave do painel ----
-       Os webhooks de status e de item só aceitam chamadas com esta chave (Header Auth no n8n).
-       Sem ela, qualquer um que lesse o config.js poderia baixar preço ou marcar pedido como pago.
-       Ela fica só no navegador da funcionária, nunca no config.js, que é público. */
-    const CHAVE_STORAGE = 'snackPainelChave';
-    let chaveMemoria = '';   // reserva para navegador que bloqueia localStorage (aba anônima)
-    function lerChave() {
-      try { return localStorage.getItem(CHAVE_STORAGE) || chaveMemoria; } catch { return chaveMemoria; }
-    }
-    function guardarChave(v) {
-      chaveMemoria = v;
-      try { if (v) localStorage.setItem(CHAVE_STORAGE, v); else localStorage.removeItem(CHAVE_STORAGE); } catch {}
-    }
-    function pedirChave(msg) {
-      const v = (prompt(msg) || '').trim();
-      if (v) guardarChave(v);
-      return v;
-    }
-    const erroChave = (msg) => Object.assign(new Error(msg), { chave: true });
-
-    // POST ao n8n com a chave. Chave recusada (401/403) não altera nada no n8n,
-    // então é seguro pedir de novo e repetir a mesma chamada uma vez.
-    async function postarN8n(url, corpo) {
-      let chave = lerChave() || pedirChave('Digite a chave do painel para salvar alterações.');
-      for (let tentativa = 0; chave && tentativa < 2; tentativa++) {
-        const res = await fetch(url, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'X-Painel-Chave': chave },
-          body: JSON.stringify(corpo)
-        });
-        if (res.status !== 401 && res.status !== 403) {
-          if (!res.ok) throw new Error('HTTP ' + res.status);
-          return res;
-        }
-        guardarChave('');
-        chave = tentativa === 0 ? pedirChave('Chave do painel incorreta. Digite de novo.') : '';
-      }
-      throw erroChave('Chave do painel ausente ou recusada');
-    }
-
-    window.google = {
-      visualization: {
-        Query: {
-          setResponse: function(resposta) {
-            if (!resposta || !resposta.table || !resposta.table.rows) return;
-            const lista = resposta.table.rows.map(r => {
-              const c = r.c || [];
-              const val = (idx) => c[idx] ? (c[idx].f || c[idx].v || '') : '';
-              const chave = String(val(8) || (val(5) + '_' + val(0)));
-              let status = normStatus(val(6));
-              let situacao = normSituacao(val(9));
-
-              // Aplica o que foi enviado e ainda não apareceu na planilha; some quando a planilha alcança
-              const ov = overrides[chave];
-              if (ov) {
-                if (ov.status) { if (ov.status === status) delete ov.status; else status = ov.status; }
-                if (ov.situacao) { if (ov.situacao === situacao) delete ov.situacao; else situacao = ov.situacao; }
-                if (!ov.status && !ov.situacao) delete overrides[chave];
-              }
-
-              return {
-                chave,
-                pedidoId: val(8),
-                data: val(0),
-                numero: val(1),
-                pedido: val(2),
-                valor: val(3),
-                pagamento: val(4),
-                codigo: val(5),
-                status,
-                situacao,
-                nome: val(7)
-              };
-            }).filter(p => (p.codigo || p.pedidoId) && String(p.codigo) !== 'Código de Retirada');
-
-            // Toca o alerta só para pedido que apareceu depois da primeira leitura
-            if (conhecidos) {
-              const novo = lista.some(p => !conhecidos.has(p.chave) && p.status === 'recebido');
-              if (novo) {
-                document.getElementById('som-alerta').play().catch(() => {});
-                if (abaAtual !== 'recebido') abaComAlerta = true;
-              }
-            }
-            conhecidos = new Set(lista.map(p => p.chave));
-            pedidosAtuais = lista.reverse();
-            renderizar();
+        // Toca o alerta só para pedido que apareceu depois da primeira leitura
+        if (conhecidos) {
+          const novo = lista.some(p => !conhecidos.has(p.chave) && p.status === 'recebido');
+          if (novo) {
+            if (telaAtual !== 'login') document.getElementById('som-alerta').play().catch(() => {});
+            if (filtro !== 'recebido') abaComAlerta = true;
           }
         }
-      }
-    };
-
-    function carregarPlanilha() {
-      const scriptAntigo = document.getElementById('script-google');
-      if (scriptAntigo) scriptAntigo.remove();
-
-      const s = document.createElement('script');
-      s.id = 'script-google';
-      s.src = `https://docs.google.com/spreadsheets/d/${CFG.SHEET_ID}/gviz/tq?tqx=out:json&headers=1&t=${Date.now()}`;
-      document.body.appendChild(s);
-    }
-
-    /* ---- mudança de status e de pagamento (passa pelo n8n) ---- */
-    async function atualizar(chave, mudanca) {
-      const p = pedidosAtuais.find(x => x.chave === chave);
-      if (!p || enviando.has(chave)) return;
-
-      const anterior = overrides[chave] ? { ...overrides[chave] } : null;
-      const ov = { ...(overrides[chave] || {}) };
-      if ('status' in mudanca) ov.status = mudanca.status;
-      if ('pagamento_situacao' in mudanca) ov.situacao = mudanca.pagamento_situacao === 'pago' ? 'pago' : 'pendente';
-      overrides[chave] = ov;
-
-      enviando.add(chave);
-      renderizar();
-      try {
-        if (CFG.N8N_STATUS_URL) {
-          await postarN8n(CFG.N8N_STATUS_URL, { pedido_id: p.pedidoId, codigo: p.codigo, ...mudanca });
-        } else {
-          console.log('Modo teste (N8N_STATUS_URL vazio). Mudança:', mudanca);
-        }
-      } catch (err) {
-        console.error(err);
-        if (anterior) overrides[chave] = anterior; else delete overrides[chave];
-        toast(err.chave ? 'Sem a chave do painel certa, a alteração não foi salva.' : 'Não foi possível atualizar o pedido. Tente de novo.');
-      } finally {
-        enviando.delete(chave);
+        conhecidos = new Set(lista.map(p => p.chave));
+        pedidosAtuais = lista.reverse();
         renderizar();
       }
     }
+  }
+};
 
-    document.getElementById('grid-pedidos').addEventListener('click', (e) => {
-      const menu = e.target.closest('[data-menu]');
-      if (menu) {
-        const k = menu.dataset.menu;
-        if (menusAbertos.has(k)) menusAbertos.delete(k); else menusAbertos.add(k);
-        renderizar();
-        return;
-      }
-      const b = e.target.closest('[data-acao]');
-      if (!b || b.disabled) return;
-      const chave = b.dataset.chave;
-      if (b.dataset.acao === 'pix') atualizar(chave, { pagamento_situacao: 'pago' });
-      else atualizar(chave, { status: b.dataset.para });
+function carregarPlanilha() {
+  if (!CFG.SHEET_ID) return;
+  document.getElementById('script-google')?.remove();
+  const s = document.createElement('script');
+  s.id = 'script-google';
+  s.src = `https://docs.google.com/spreadsheets/d/${CFG.SHEET_ID}/gviz/tq?tqx=out:json&headers=1&t=${Date.now()}`;
+  document.body.appendChild(s);
+}
+
+// ---------- mudança de status e de pagamento (passa pelo n8n) ----------
+async function atualizar(chave, mudanca) {
+  const p = pedidosAtuais.find(x => x.chave === chave);
+  if (!p || enviando.has(chave)) return;
+
+  const anterior = overrides[chave] ? { ...overrides[chave] } : null;
+  const ov = { ...(overrides[chave] || {}) };
+  if ('status' in mudanca) ov.status = mudanca.status;
+  if ('pagamento_situacao' in mudanca) ov.situacao = mudanca.pagamento_situacao === 'pago' ? 'pago' : 'pendente';
+  overrides[chave] = ov;
+
+  // Mostra a mudança na hora; se o n8n recusar, volta ao que era
+  if (ov.status) p.status = ov.status;
+  if (ov.situacao) p.situacao = ov.situacao;
+  enviando.add(chave);
+  renderizar();
+  try {
+    if (CFG.N8N_STATUS_URL) {
+      await postarN8n(CFG.N8N_STATUS_URL, { pedido_id: p.pedidoId, codigo: p.codigo, ...mudanca });
+    } else {
+      console.log('Modo teste (N8N_STATUS_URL vazio). Mudança:', mudanca);
+    }
+  } catch (err) {
+    console.error(err);
+    if (anterior) overrides[chave] = anterior; else delete overrides[chave];
+    // Desfaz a mudança otimista; a próxima leitura da planilha confirma o estado real
+    if ('status' in mudanca) p.status = anterior?.status || (mudanca.status === 'em_preparo' ? 'recebido' : ANTERIOR[mudanca.status] || p.status);
+    if ('pagamento_situacao' in mudanca) p.situacao = 'pendente';
+    if (!err.chave) toast('Não foi possível atualizar o pedido. Tente de novo.');
+  } finally {
+    enviando.delete(chave);
+    renderizar();
+  }
+}
+
+// ---------- linha do tempo do pedido ----------
+// A bolinha verde que pisca é a etapa atual. Retirado é o fim: todas ficam verdes e nenhuma pisca.
+function montarLinhaTempo(p) {
+  const idx = FLUXO.indexOf(p.status);
+  if (idx < 0) return '';
+  const etapas = FLUXO.map((e, i) => {
+    const classe = i < idx || (i === idx && p.status === 'retirado') ? 'feita' : i === idx ? 'atual' : '';
+    return `<div class="etapa ${classe}" role="listitem"><span class="ponto"></span>${ROTULO[e]}</div>`;
+  }).join('');
+  return `<div class="linha-tempo" role="list" aria-label="Etapas do pedido">${etapas}</div>`;
+}
+
+const horaDe = (p) => p.data.includes(' ') ? p.data.split(' ').slice(1).join(' ') : p.data;
+const linhasDe = (p) => String(p.pedido || '').split(/\r?\n/).map(s => s.trim()).filter(Boolean);
+const formaCurta = (f) => /balc/i.test(f) ? 'No balcão' : (f || 'A definir');
+
+// ---------- cartão em destaque (acompanha um pedido por todas as etapas) ----------
+function escolherDestaque() {
+  let p = pedidosAtuais.find(x => x.chave === destaqueChave);
+  if (!p) {
+    // O mais antigo que ainda não saiu da cozinha: primeiro a entrar, primeiro a sair
+    const emAberto = [...pedidosAtuais].reverse().filter(x => x.status !== 'retirado');
+    p = emAberto.find(x => x.status === 'recebido') || emAberto[0] || null;
+    destaqueChave = p ? p.chave : null;
+  }
+  return p;
+}
+function renderizarDestaque() {
+  const p = escolherDestaque();
+  const card = document.getElementById('destaque-card');
+  const titulo = document.getElementById('anuncio-titulo');
+  const sub = document.getElementById('anuncio-sub');
+  if (!p) {
+    titulo.textContent = 'Tudo em dia!';
+    sub.textContent = 'Sem pedidos esperando';
+    card.innerHTML = '<small>Fila zerada</small><h3>Nenhum pedido novo</h3><p>Quando um pedido chegar, ele aparece aqui.</p>';
+    return;
+  }
+  titulo.textContent = TITULOS[p.status][0];
+  const aguardando = pedidosAtuais.filter(x => x.status === 'recebido' && x.chave !== p.chave).length;
+  sub.textContent = aguardando ? `+${aguardando} aguardando na fila` : TITULOS[p.status][1];
+  const prox = PROXIMO[p.status];
+  card.innerHTML = `
+    <small>#${esc(p.codigo || '----')} · ${esc(horaDe(p))}</small>
+    <h3>${esc(p.nome || 'Sem nome')}</h3>
+    <p>${linhasDe(p).map(esc).join(' · ') || 'Sem descrição'}</p>
+    ${montarLinhaTempo(p)}
+    <button class="btn ${enviando.has(p.chave) ? 'btn-busy' : ''}" type="button" data-dest="${prox ? 'avancar' : 'proximo'}">${prox ? prox.texto : 'Próximo pedido'}</button>`;
+}
+document.getElementById('destaque-card').addEventListener('click', (ev) => {
+  const b = ev.target.closest('[data-dest]');
+  if (!b) return;
+  const p = pedidosAtuais.find(x => x.chave === destaqueChave);
+  if (b.dataset.dest === 'avancar' && p) atualizar(p.chave, { status: PROXIMO[p.status].para });
+  else { destaqueChave = null; renderizar(); }   // "Próximo pedido": escolhe o seguinte da fila
+});
+
+// ---------- lista de pedidos ----------
+function cardHTML(p) {
+  const prox = PROXIMO[p.status];
+  const ant = ANTERIOR[p.status];
+  const busy = enviando.has(p.chave) ? 'btn-busy' : '';
+  const aberto = menusAbertos.has(p.chave);
+  const numLimpo = String(p.numero || '').replace(/\D/g, '');
+  const pixPendente = ehPix(p.pagamento) && p.situacao !== 'pago';
+  const chave = esc(p.chave);
+  return `
+    <article class="pedido">
+      <header>
+        <div class="inicial">${esc((p.nome || '#').charAt(0).toUpperCase())}</div>
+        <div><strong>${esc(p.nome || 'Sem nome')}</strong><span class="cod">#${esc(p.codigo || '----')} · ${esc(horaDe(p))}</span></div>
+        <span class="pill ${p.status}">${ROTULO[p.status]}</span>
+        <button class="mais" type="button" data-menu="${chave}" aria-label="Mais opções" aria-expanded="${aberto}">
+          <svg viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="19" cy="12" r="1.8"/></svg>
+        </button>
+      </header>
+      <ul class="itens">${linhasDe(p).map(l => `<li>${esc(l)}</li>`).join('') || '<li>Sem descrição</li>'}</ul>
+      ${montarLinhaTempo(p)}
+      <div class="rodape">
+        <span class="pag ${p.situacao === 'pago' ? 'pago' : 'pendente'}"><i></i>${esc(formaCurta(p.pagamento))} · ${p.situacao === 'pago' ? 'pago' : 'pendente'}</span>
+        <span class="total">${brl(parseValor(p.valor))}</span>
+      </div>
+      ${pixPendente ? `<button class="btn-pix ${busy}" type="button" data-acao="pix" data-chave="${chave}">Marcar Pix recebido</button>` : ''}
+      ${prox
+        ? `<button class="btn ${busy}" type="button" data-acao="status" data-para="${prox.para}" data-chave="${chave}">${prox.texto}</button>`
+        : '<div class="btn-concluido">Pedido retirado</div>'}
+      <div class="menu-card ${aberto ? 'aberto' : ''}">
+        <div>Pedido feito em ${esc(p.data)}</div>
+        <div class="menu-acoes">
+          ${numLimpo ? `<a class="menu-acao" href="https://wa.me/${numLimpo.startsWith('55') ? numLimpo : '55' + numLimpo}" target="_blank" rel="noopener">WhatsApp ${esc(p.numero)}</a>` : ''}
+          ${ant ? `<button class="menu-acao ${busy}" type="button" data-acao="status" data-para="${ant}" data-chave="${chave}">Voltar para "${ROTULO[ant]}"</button>` : ''}
+        </div>
+      </div>
+    </article>`;
+}
+
+function renderizarLista() {
+  const termo = document.getElementById('busca').value.toLowerCase().trim();
+  const contagem = Object.fromEntries(FLUXO.map(e => [e, 0]));
+  pedidosAtuais.forEach(p => contagem[p.status]++);
+  document.getElementById('filtros').innerHTML = FLUXO.map(e =>
+    `<button class="chip ${e === 'recebido' && abaComAlerta ? 'alerta' : ''}" type="button" data-filtro="${e}" aria-pressed="${!termo && e === filtro}">${ROTULO[e]}<b>${contagem[e]}</b></button>`
+  ).join('');
+
+  // Com busca ativa, procura em todas as etapas: o pedido buscado pode estar em outra
+  const visiveis = pedidosAtuais.filter(p => {
+    if (!termo) return p.status === filtro;
+    return String(p.codigo || '').toLowerCase().includes(termo)
+        || String(p.pedido || '').toLowerCase().includes(termo)
+        || String(p.nome || '').toLowerCase().includes(termo);
+  });
+  document.getElementById('titulo-lista').textContent = termo ? 'Resultados' : 'Pedidos';
+  document.getElementById('contagem').textContent = `${visiveis.length} ${visiveis.length === 1 ? 'pedido' : 'pedidos'}`;
+  document.getElementById('lista').innerHTML = visiveis.map(cardHTML).join('') || `
+    <div class="vazio"><img src="assets/coxinha-dormindo.webp" alt="Coxinha dormindo"><strong>${termo ? 'Nenhum pedido encontrado' : 'Tudo calmo por aqui'}</strong><span>${termo ? 'Tente outro código, nome ou item.' : `Nenhum pedido em "${ROTULO[filtro]}" agora.`}</span></div>`;
+}
+
+document.getElementById('filtros').addEventListener('click', (ev) => {
+  const b = ev.target.closest('[data-filtro]');
+  if (!b) return;
+  filtro = b.dataset.filtro;
+  if (filtro === 'recebido') abaComAlerta = false;
+  const busca = document.getElementById('busca');
+  if (busca.value) busca.value = '';   // escolher uma etapa sai do modo busca
+  renderizar();
+});
+document.getElementById('lista').addEventListener('click', (ev) => {
+  const menu = ev.target.closest('[data-menu]');
+  if (menu) {
+    const k = menu.dataset.menu;
+    if (menusAbertos.has(k)) menusAbertos.delete(k); else menusAbertos.add(k);
+    renderizarLista();
+    return;
+  }
+  const b = ev.target.closest('[data-acao]');
+  if (!b || b.classList.contains('btn-busy')) return;
+  if (b.dataset.acao === 'pix') atualizar(b.dataset.chave, { pagamento_situacao: 'pago' });
+  else atualizar(b.dataset.chave, { status: b.dataset.para });
+});
+
+// A busca fica recolhida para liberar espaço; ao fechar, o termo é limpo para não esconder pedidos sem a pessoa perceber
+const areaBusca = document.getElementById('area-busca');
+const botaoBusca = document.getElementById('btn-busca');
+botaoBusca.addEventListener('click', () => {
+  const abrir = areaBusca.hidden;
+  areaBusca.hidden = !abrir;
+  botaoBusca.setAttribute('aria-expanded', String(abrir));
+  if (abrir) document.getElementById('busca').focus();
+  else { document.getElementById('busca').value = ''; renderizar(); }
+});
+document.getElementById('busca').addEventListener('input', renderizarLista);
+
+// ---------- números do dia (resumo e perfil) ----------
+const chaveDia = (txt) => { const m = String(txt).match(/(\d{1,2})\/(\d{1,2})/); return m ? pad(m[1]) + '/' + pad(m[2]) : ''; };
+function estatisticas() {
+  const hoje = new Date();
+  const dias = [];
+  for (let i = 6; i >= 0; i--) {
+    const d = new Date(hoje); d.setDate(hoje.getDate() - i);
+    dias.push({ chave: pad(d.getDate()) + '/' + pad(d.getMonth() + 1), rotulo: SEMANA[d.getDay()], valor: 0 });
+  }
+  const porDia = Object.fromEntries(dias.map(d => [d.chave, d]));
+  const hojeChave = dias[dias.length - 1].chave;
+  let qtd = 0, valor = 0, pix = 0, balcao = 0, abertos = 0;
+  pedidosAtuais.forEach(p => {
+    const k = chaveDia(p.data), v = parseValor(p.valor);
+    if (porDia[k]) porDia[k].valor += v;
+    if (k === hojeChave) { qtd++; valor += v; if (ehPix(p.pagamento)) pix++; else balcao++; }
+    if (p.status !== 'retirado') abertos++;
+  });
+  return { qtd, valor, ticket: qtd ? valor / qtd : 0, pix, balcao, abertos, dias };
+}
+// Nível por pedidos do dia em relação à meta (META_PEDIDOS_DIA no config.js)
+function nivelDoDia(qtd) {
+  const pct = qtd / META_DIA;
+  if (pct >= 1) return 'Nível 4 · Meta batida';
+  if (pct >= 0.5) return 'Nível 3 · Cozinha a mil';
+  if (pct >= 0.25) return 'Nível 2 · No ritmo';
+  return 'Nível 1 · Aquecendo';
+}
+function renderizarResumo() {
+  const e = estatisticas();
+  const pct = Math.min(100, Math.round(e.qtd / META_DIA * 100));
+  document.getElementById('res-valor').textContent = brl(e.valor);
+  document.getElementById('res-selo').textContent = nivelDoDia(e.qtd);
+  const barra = document.getElementById('res-barra');
+  barra.setAttribute('aria-valuemax', META_DIA); barra.setAttribute('aria-valuenow', Math.min(e.qtd, META_DIA));
+  barra.firstElementChild.style.width = pct + '%';
+  document.getElementById('res-txt1').textContent = `${e.qtd} de ${META_DIA} pedidos`;
+  document.getElementById('res-txt2').textContent = e.qtd >= META_DIA ? 'Meta batida!' : `Faltam ${META_DIA - e.qtd}`;
+  return e;
+}
+function renderizarPerfil() {
+  const e = estatisticas();
+  const pct = Math.min(100, Math.round(e.qtd / META_DIA * 100));
+  document.getElementById('perf-valor').textContent = brl(e.valor);
+  document.getElementById('perf-selo').textContent = nivelDoDia(e.qtd);
+  document.getElementById('perf-qtd').textContent = e.qtd;
+  document.getElementById('perf-ticket').textContent = brl(e.ticket);
+  document.getElementById('perf-abertos').textContent = e.abertos;
+  document.getElementById('perf-pix').textContent = `${e.pix} / ${e.balcao}`;
+  document.getElementById('perf-meta').textContent = `${e.qtd} de ${META_DIA}`;
+  document.getElementById('perf-falta').textContent = e.qtd >= META_DIA ? 'Meta batida!' : `Faltam ${META_DIA - e.qtd}`;
+  document.getElementById('perf-barra').style.width = pct + '%';
+  const maximo = Math.max(1, ...e.dias.map(d => d.valor));
+  const curto = (v) => v >= 1000 ? (v / 1000).toFixed(1).replace('.', ',') + 'k' : String(Math.round(v));
+  document.getElementById('barras').innerHTML = e.dias.map((d, i) =>
+    `<div class="barra ${i === e.dias.length - 1 ? 'hoje' : ''}"><span>${curto(d.valor)}</span><i style="height:${Math.max(4, Math.round(d.valor / maximo * 82))}px"></i><em>${d.rotulo}</em></div>`
+  ).join('');
+  document.getElementById('total-semana').textContent = brl(e.dias.reduce((s, d) => s + d.valor, 0));
+}
+
+function renderizar() {
+  renderizarLista();
+  renderizarDestaque();
+  renderizarResumo();
+  if (telaAtual === 'perfil') renderizarPerfil();
+}
+
+// ---------- itens do cardápio (aba "Cardapio" da planilha) ----------
+// Colunas pelo nome do cabeçalho: id | categoria | nome | desc | emoji | preco | disponivel
+// (mesmo leitor do cardápio: o painel e o cliente enxergam a mesma fonte)
+function lerAbaCardapio(resp) {
+  if (!resp || resp.status !== 'ok' || !resp.table) return null;
+  const col = (n) => resp.table.cols.findIndex(c => String(c.label || '').trim().toLowerCase() === n);
+  const ix = { id: col('id'), categoria: col('categoria'), nome: col('nome'), desc: col('desc'), preco: col('preco'), disp: col('disponivel') };
+  // Aba inexistente faz o Google devolver a primeira aba (pedidos): sem o cabeçalho certo, ignora.
+  if ([ix.id, ix.categoria, ix.nome, ix.preco].some(i => i < 0)) return null;
+  const val = (r, i) => (i >= 0 && r.c && r.c[i]) ? r.c[i].v : null;
+  const txt = (r, i) => String(val(r, i) ?? '').trim();
+  return (resp.table.rows || []).map(r => {
+    const bruto = val(r, ix.preco);
+    const p = typeof bruto === 'number' ? bruto : parseFloat(String(bruto ?? '').replace(',', '.'));
+    const d = val(r, ix.disp);
+    const esgotado = d === false || ['false', 'nao', 'não', 'n', '0', 'esgotado'].includes(String(d ?? '').trim().toLowerCase());
+    return { id: txt(r, ix.id), categoria: txt(r, ix.categoria), nome: txt(r, ix.nome), desc: txt(r, ix.desc), preco: p, disponivel: !esgotado };
+  }).filter(i => i.id && i.nome && i.categoria && Number.isFinite(i.preco));
+}
+
+let itensAtuais = null;            // null = ainda não carregou; [] = aba vazia
+let itensErro = false;
+let categoriaAtual = 'Todos';
+const itemOverrides = {};          // mudanças enviadas que a planilha ainda não refletiu
+const itemEnviando = new Set();
+const rascunhoPreco = {};          // o que a funcionária digitou e ainda não salvou; sobrevive ao redesenho da lista
+const listaItensEl = document.getElementById('itens-cardapio');
+
+window.painelItens = (resp) => {
+  const lista = lerAbaCardapio(resp);
+  itensErro = !lista;
+  if (lista) {
+    itensAtuais = lista;
+    // Descarta a mudança pendente quando a planilha já alcançou
+    lista.forEach(it => {
+      const ov = itemOverrides[it.id];
+      if (!ov) return;
+      if ('preco' in ov && Math.abs(ov.preco - it.preco) < 0.001) delete ov.preco;
+      if ('disponivel' in ov && ov.disponivel === it.disponivel) delete ov.disponivel;
+      if (!Object.keys(ov).length) delete itemOverrides[it.id];
     });
+  }
+  renderizarItens();
+};
 
-    /* ---- renderização ---- */
-    // A comanda segue a ordem de leitura da cozinha: código e etapa no canhoto, depois quem pediu e o quê,
-    // o total e, por último, o botão do próximo passo. O resto vai para o menu "⋯" para a comanda não crescer.
-    function cardHTML(p) {
-      const st = STATUS[p.status];
-      const busy = enviando.has(p.chave);
-      const numLimpo = String(p.numero || '').replace(/\D/g, '');
-      const prox = PROXIMO[p.status];
-      const ant = ANTERIOR[p.status];
-      const pixPendente = ehPix(p.pagamento) && p.situacao !== 'pago';
-      const busyCls = busy ? 'btn-busy' : '';
-      const menuAberto = menusAbertos.has(p.chave);
+function carregarItens() {
+  if (!CFG.SHEET_ID) return;
+  document.getElementById('script-itens')?.remove();
+  const aba = encodeURIComponent(CFG.ABA_CARDAPIO || 'Cardapio');
+  const sc = document.createElement('script');
+  sc.id = 'script-itens';
+  sc.src = `https://docs.google.com/spreadsheets/d/${CFG.SHEET_ID}/gviz/tq?tqx=out:json;responseHandler:painelItens&headers=1&sheet=${aba}&t=${Date.now()}`;
+  sc.onerror = () => { itensErro = true; renderizarItens(); };
+  document.body.appendChild(sc);
+}
 
-      return `
-        <article class="ticket ${st.borda}">
-          <div class="ticket-papel">
-            <div class="ticket-topo">
-              <span class="ticket-cod">#${esc(p.codigo || '----')}</span>
-              <span class="tag-etapa">${st.label}</span>
-            </div>
-            <div class="ticket-corte" aria-hidden="true"></div>
+// Preço e "esgotado" passam pelo n8n; a planilha é atualizada por lá
+async function atualizarItem(id, mudanca) {
+  const it = itensAtuais && itensAtuais.find(x => x.id === id);
+  if (!it || itemEnviando.has(id)) return;
+  const anterior = itemOverrides[id] ? { ...itemOverrides[id] } : null;
+  itemOverrides[id] = { ...(itemOverrides[id] || {}), ...mudanca };
+  itemEnviando.add(id);
+  renderizarItens(true);
+  try {
+    if (CFG.N8N_ITEM_URL) await postarN8n(CFG.N8N_ITEM_URL, { id, ...mudanca });
+    else console.log('Modo teste (N8N_ITEM_URL vazio). Mudança:', { id, ...mudanca });
+    if ('preco' in mudanca) { delete rascunhoPreco[id]; toast('Preço salvo.'); }
+  } catch (err) {
+    console.error(err);
+    if (anterior) itemOverrides[id] = anterior; else delete itemOverrides[id];
+    if (!err.chave) toast('Não foi possível atualizar o item. Tente de novo.');
+  } finally {
+    itemEnviando.delete(id);
+    renderizarItens(true);
+  }
+}
 
-            <div class="ticket-corpo">
-              <div class="ticket-nome"><i class="fas fa-user"></i>${esc(p.nome || 'Sem nome')}</div>
+// A foto de cada item é assets/item-<id>.webp. Sem foto, aparece um quadradinho com a inicial.
+function itemHTML(base) {
+  const it = { ...base, ...(itemOverrides[base.id] || {}) };
+  const idAttr = esc(it.id);
+  const inicial = esc(it.nome.charAt(0).toUpperCase());
+  const valorCampo = rascunhoPreco[it.id] ?? preco(it.preco);
+  return `
+    <article class="item ${it.disponivel ? '' : 'esgotado'} ${itemEnviando.has(it.id) ? 'btn-busy' : ''}">
+      <div class="foto"><img src="assets/item-${encodeURIComponent(it.id)}.webp" alt="" data-ini="${inicial}"></div>
+      <div><h3>${esc(it.nome)}</h3><p>${it.disponivel ? esc(it.desc) : 'Esgotado'}</p></div>
+      <div class="troca"><button class="switch" type="button" role="switch" aria-checked="${it.disponivel}" aria-label="No ar: ${esc(it.nome)}" data-item="${idAttr}"></button>${it.disponivel ? 'No ar' : 'Esgotado'}</div>
+      <div class="preco-linha">
+        <label class="campo-preco"><span>R$</span><input type="text" inputmode="decimal" data-preco="${idAttr}" value="${esc(valorCampo)}" aria-label="Preço de ${esc(it.nome)}"></label>
+        <button class="btn-salvar" type="button" data-salvar="${idAttr}">Salvar</button>
+      </div>
+    </article>`;
+}
 
-              <p class="itens-card">${esc(p.pedido || 'Sem descrição')}</p>
+// `forcar` redesenha mesmo com um campo de preço em foco (depois de salvar); o redesenho
+// periódico respeita o campo em foco para não apagar o que a funcionária está digitando.
+function renderizarItens(forcar) {
+  if (telaAtual !== 'cardapio') return;
+  if (!forcar && listaItensEl.contains(document.activeElement) && document.activeElement.tagName === 'INPUT') return;
+  const chips = document.getElementById('categorias');
+  if (itensAtuais === null) {
+    chips.innerHTML = '';
+    listaItensEl.innerHTML = `<div class="vazio"><strong>${itensErro ? 'Não encontrei o cardápio' : 'Carregando itens...'}</strong>${itensErro ? `<span>Confira a aba "${esc(CFG.ABA_CARDAPIO || 'Cardapio')}" e o cabeçalho na planilha.</span>` : ''}</div>`;
+    return;
+  }
+  const itens = itensAtuais.map(i => ({ ...i, ...(itemOverrides[i.id] || {}) }));
+  document.getElementById('qtd-no-ar').textContent = itens.filter(i => i.disponivel).length;
+  const cats = ['Todos', ...new Set(itensAtuais.map(i => i.categoria))];
+  if (!cats.includes(categoriaAtual)) categoriaAtual = 'Todos';
+  chips.innerHTML = cats.map(c =>
+    `<button class="chip" type="button" data-cat="${esc(c)}" aria-pressed="${c === categoriaAtual}">${esc(c)}<b>${c === 'Todos' ? itens.length : itens.filter(i => i.categoria === c).length}</b></button>`).join('');
+  const visiveis = itensAtuais.filter(i => categoriaAtual === 'Todos' || i.categoria === categoriaAtual);
+  listaItensEl.innerHTML = visiveis.map(itemHTML).join('') || '<div class="vazio"><strong>A aba do cardápio está vazia.</strong></div>';
+}
 
-              <div class="ticket-pagamento">
-                <span class="tag ${corPagamento(p.pagamento)}">${esc(p.pagamento || 'A definir')}</span>
-                ${pixPendente ? `<span class="tag pg-pendente"><i class="fas fa-clock"></i>Pix pendente</span>` : ''}
-              </div>
+document.getElementById('categorias').addEventListener('click', (ev) => {
+  const b = ev.target.closest('[data-cat]');
+  if (!b) return;
+  categoriaAtual = b.dataset.cat;
+  renderizarItens(true);
+});
+listaItensEl.addEventListener('input', (ev) => {
+  const campo = ev.target.closest('[data-preco]');
+  if (campo) rascunhoPreco[campo.dataset.preco] = campo.value;
+});
+listaItensEl.addEventListener('click', (ev) => {
+  const chave = ev.target.closest('[data-item]');
+  if (chave) {
+    const base = itensAtuais.find(x => x.id === chave.dataset.item);
+    const atual = { ...base, ...(itemOverrides[base.id] || {}) };
+    atualizarItem(base.id, { disponivel: !atual.disponivel });
+    return;
+  }
+  const salvar = ev.target.closest('[data-salvar]');
+  if (!salvar) return;
+  const id = salvar.dataset.salvar;
+  const campo = listaItensEl.querySelector(`[data-preco="${CSS.escape(id)}"]`);
+  const novo = parseFloat(String(campo.value).replace(',', '.'));
+  if (!Number.isFinite(novo) || novo <= 0 || novo > 999) { toast('Informe um preço válido, ex.: 6,50'); return; }
+  atualizarItem(id, { preco: Math.round(novo * 100) / 100 });
+});
+// Foto que não existe vira o quadradinho com a inicial (o evento "error" não sobe, então escuta na captura)
+listaItensEl.addEventListener('error', (ev) => {
+  const img = ev.target;
+  if (img.tagName !== 'IMG') return;
+  const q = document.createElement('div');
+  q.className = 'foto-ini';
+  q.textContent = img.dataset.ini || '?';
+  img.replaceWith(q);
+}, true);
 
-              <div class="ticket-total">
-                <span class="ticket-total-rotulo">Total</span>
-                <span class="ticket-total-pontos"></span>
-                <span class="ticket-total-valor">${formatarValor(p.valor)}</span>
-              </div>
+// ---------- início ----------
+if (lerChave()) abrir(); else mostrar('login');
 
-              <div class="acoes">
-                ${prox ? `
-                  <button data-acao="status" data-para="${prox.para}" data-chave="${esc(p.chave)}"
-                          class="btn-principal ${busyCls}">
-                    <i class="fas ${prox.icone}"></i> ${prox.texto}
-                  </button>` : `
-                  <div class="btn-concluido">
-                    <i class="fas fa-check"></i> Pedido retirado
-                  </div>`}
-                <button data-menu="${esc(p.chave)}" aria-label="Mais opções" aria-expanded="${menuAberto}" class="btn-mais">
-                  <i class="fas fa-ellipsis-h"></i>
-                </button>
-              </div>
-
-              ${pixPendente ? `
-                <button data-acao="pix" data-chave="${esc(p.chave)}" class="btn-pix ${busyCls}">
-                  <i class="fas fa-money-check-alt"></i> Marcar Pix recebido
-                </button>` : ''}
-
-              <div class="menu-card ${menuAberto ? 'aberto' : ''} ticket-menu">
-                <div><i class="far fa-clock mr-1"></i> ${esc(p.data)}</div>
-                <div class="menu-acoes">
-                  ${numLimpo ? `
-                    <a href="https://wa.me/${numLimpo.startsWith('55') ? numLimpo : '55' + numLimpo}" target="_blank" rel="noopener"
-                       class="menu-acao menu-acao-zap">
-                      <i class="fab fa-whatsapp text-base"></i> ${esc(p.numero)}
-                    </a>` : ''}
-                  ${ant ? `
-                    <button data-acao="status" data-para="${ant}" data-chave="${esc(p.chave)}"
-                            class="menu-acao ${busyCls}">
-                      <i class="fas fa-undo"></i> Voltar para "${STATUS[ant].label}"
-                    </button>` : ''}
-                </div>
-              </div>
-            </div>
-          </div>
-          <div class="ticket-serra" aria-hidden="true"></div>
-        </article>`;
-    }
-
-    function renderizar() {
-      const grid = document.getElementById('grid-pedidos');
-      const termo = document.getElementById('busca').value.toLowerCase().trim();
-
-      const contagem = { recebido: 0, em_preparo: 0, pronto: 0, retirado: 0 };
-      pedidosAtuais.forEach(p => contagem[p.status]++);
-
-      document.getElementById('abas').innerHTML = ABAS.map(a => `
-        <button onclick="mudarAba('${a}')" class="aba aba-${a} ${a === abaAtual ? 'ativa' : ''} ${a === 'recebido' && abaComAlerta ? 'alerta' : ''}">
-          <span class="qtd">${contagem[a]}</span>${STATUS[a].label}
-        </button>`).join('');
-
-      // Com busca ativa, procura em todas as etapas: o pedido buscado pode estar em outra aba
-      const visiveis = pedidosAtuais.filter(p => {
-        if (!termo) return p.status === abaAtual;
-        return String(p.codigo || '').toLowerCase().includes(termo)
-            || String(p.pedido || '').toLowerCase().includes(termo)
-            || String(p.nome || '').toLowerCase().includes(termo);
-      });
-
-      grid.innerHTML = visiveis.map(cardHTML).join('') || `
-        <div class="vazio col-span-full">
-          <i class="fas fa-concierge-bell"></i>
-          ${termo ? 'Nenhum pedido encontrado.' : 'Nenhum pedido nesta etapa.'}
-        </div>`;
-    }
-
-    /* ---- itens do cardápio (aba "Cardapio" da planilha) ---- */
-    // Colunas pelo nome do cabeçalho: id | categoria | nome | desc | emoji | preco | disponivel
-    // (mesmo leitor do cardápio: o painel e o cliente enxergam a mesma fonte)
-    function lerAbaCardapio(resp) {
-      if (!resp || resp.status !== 'ok' || !resp.table) return null;
-      const col = (n) => resp.table.cols.findIndex(c => String(c.label || '').trim().toLowerCase() === n);
-      const ix = { id: col('id'), categoria: col('categoria'), nome: col('nome'), emoji: col('emoji'), preco: col('preco'), disp: col('disponivel') };
-      // Aba inexistente faz o Google devolver a primeira aba (pedidos): sem o cabeçalho certo, ignora.
-      if ([ix.id, ix.categoria, ix.nome, ix.preco].some(i => i < 0)) return null;
-      const val = (r, i) => (i >= 0 && r.c && r.c[i]) ? r.c[i].v : null;
-      const txt = (r, i) => String(val(r, i) ?? '').trim();
-      return (resp.table.rows || []).map(r => {
-        const bruto = val(r, ix.preco);
-        const preco = typeof bruto === 'number' ? bruto : parseFloat(String(bruto ?? '').replace(',', '.'));
-        const d = val(r, ix.disp);
-        const esgotado = d === false || ['false', 'nao', 'não', 'n', '0', 'esgotado'].includes(String(d ?? '').trim().toLowerCase());
-        return { id: txt(r, ix.id), categoria: txt(r, ix.categoria), nome: txt(r, ix.nome), emoji: txt(r, ix.emoji) || '🍽️', preco, disponivel: !esgotado };
-      }).filter(i => i.id && i.nome && i.categoria && Number.isFinite(i.preco));
-    }
-
-    let visao = 'pedidos';
-    let itensAtuais = null;            // null = ainda não carregou; [] = aba vazia
-    let itensErro = false;
-    const itemOverrides = {};          // mudanças enviadas que a planilha ainda não refletiu
-    const itemEnviando = new Set();
-    const rascunhoPreco = {};          // o que a funcionária digitou e ainda não salvou; sobrevive ao redesenho da lista
-
-    const brl = (n) => n.toFixed(2).replace('.', ',');
-
-    window.painelItens = (resp) => {
-      const lista = lerAbaCardapio(resp);
-      itensErro = !lista;
-      if (lista) {
-        itensAtuais = lista;
-        // Descarta a mudança pendente quando a planilha já alcançou
-        lista.forEach(it => {
-          const ov = itemOverrides[it.id];
-          if (!ov) return;
-          if ('preco' in ov && Math.abs(ov.preco - it.preco) < 0.001) delete ov.preco;
-          if ('disponivel' in ov && ov.disponivel === it.disponivel) delete ov.disponivel;
-          if (!Object.keys(ov).length) delete itemOverrides[it.id];
-        });
-      }
-      renderizarItens();
-    };
-
-    function carregarItens() {
-      if (!CFG.SHEET_ID) return;
-      document.getElementById('script-itens')?.remove();
-      const aba = encodeURIComponent(CFG.ABA_CARDAPIO || 'Cardapio');
-      const sc = document.createElement('script');
-      sc.id = 'script-itens';
-      sc.src = `https://docs.google.com/spreadsheets/d/${CFG.SHEET_ID}/gviz/tq?tqx=out:json;responseHandler:painelItens&headers=1&sheet=${aba}&t=${Date.now()}`;
-      sc.onerror = () => { itensErro = true; renderizarItens(); };
-      document.body.appendChild(sc);
-    }
-
-    function recarregar() { if (visao === 'itens') carregarItens(); else carregarPlanilha(); }
-
-    function alternarVisao() {
-      const area = document.getElementById('area-busca');
-      if (visao === 'pedidos' && !area.classList.contains('hidden')) alternarBusca();   // fecha e limpa a busca
-      visao = visao === 'pedidos' ? 'itens' : 'pedidos';
-      const itens = visao === 'itens';
-      document.getElementById('trilho').classList.toggle('hidden', itens);
-      document.getElementById('view-pedidos').classList.toggle('hidden', itens);
-      document.getElementById('view-itens').classList.toggle('hidden', !itens);
-      document.getElementById('btn-busca').classList.toggle('hidden', itens);
-      document.getElementById('subtitulo').textContent = itens ? 'Itens do cardápio' : 'Gestor de Pedidos';
-      document.querySelector('#btn-visao i').className = 'fas text-xs ' + (itens ? 'fa-receipt' : 'fa-utensils');
-      const rotuloVisao = itens ? 'Voltar aos pedidos' : 'Itens do cardápio';
-      document.getElementById('btn-visao').title = rotuloVisao;
-      document.getElementById('btn-visao').setAttribute('aria-label', rotuloVisao);
-      if (itens) { renderizarItens(); carregarItens(); }
-    }
-
-    /* Preço e "esgotado" passam pelo n8n; a planilha é atualizada por lá */
-    async function atualizarItem(id, mudanca) {
-      const it = itensAtuais && itensAtuais.find(x => x.id === id);
-      if (!it || itemEnviando.has(id)) return;
-
-      const anterior = itemOverrides[id] ? { ...itemOverrides[id] } : null;
-      itemOverrides[id] = { ...(itemOverrides[id] || {}), ...mudanca };
-      itemEnviando.add(id);
-      renderizarItens(true);
-      try {
-        if (CFG.N8N_ITEM_URL) {
-          await postarN8n(CFG.N8N_ITEM_URL, { id, ...mudanca });
-        } else {
-          console.log('Modo teste (N8N_ITEM_URL vazio). Mudança:', { id, ...mudanca });
-        }
-        if ('preco' in mudanca) delete rascunhoPreco[id];
-      } catch (err) {
-        console.error(err);
-        if (anterior) itemOverrides[id] = anterior; else delete itemOverrides[id];
-        toast(err.chave ? 'Sem a chave do painel certa, a alteração não foi salva.' : 'Não foi possível atualizar o item. Tente de novo.');
-      } finally {
-        itemEnviando.delete(id);
-        renderizarItens(true);
-      }
-    }
-
-    const listaItensEl = document.getElementById('lista-itens');
-
-    listaItensEl.addEventListener('input', (e) => {
-      const campo = e.target.closest('[data-preco]');
-      if (campo) rascunhoPreco[campo.dataset.preco] = campo.value;
-    });
-
-    listaItensEl.addEventListener('click', (e) => {
-      const b = e.target.closest('[data-item-acao]');
-      if (!b || b.disabled) return;
-      const id = b.dataset.id;
-      if (b.dataset.itemAcao === 'esgotar') {
-        atualizarItem(id, { disponivel: b.dataset.para === 'sim' });
-        return;
-      }
-      // salvar preço: aceita vírgula ou ponto
-      const campo = listaItensEl.querySelector(`[data-preco="${CSS.escape(id)}"]`);
-      const novo = parseFloat(String(campo.value).replace(',', '.'));
-      if (!Number.isFinite(novo) || novo <= 0 || novo > 999) { toast('Informe um preço válido, ex.: 6,50'); return; }
-      atualizarItem(id, { preco: Math.round(novo * 100) / 100 });
-    });
-
-    function itemHTML(base) {
-      const it = { ...base, ...(itemOverrides[base.id] || {}) };
-      const busy = itemEnviando.has(it.id);
-      const valorCampo = rascunhoPreco[it.id] ?? brl(it.preco);
-      const idAttr = esc(it.id);
-      return `
-        <div class="item ${it.disponivel ? 'item-ok' : 'item-off'} ${busy ? 'btn-busy' : ''}">
-          <div class="flex items-center justify-between gap-2">
-            <div class="item-nome">${esc(it.emoji)} ${esc(it.nome)}</div>
-            ${it.disponivel ? '' : '<span class="tag tag-esgotado">Esgotado</span>'}
-          </div>
-          <div class="item-preco">
-            <div class="campo-preco">
-              <span>R$</span>
-              <input type="text" inputmode="decimal" data-preco="${idAttr}" value="${esc(valorCampo)}" aria-label="Preço de ${esc(it.nome)}">
-            </div>
-            <button data-item-acao="preco" data-id="${idAttr}" class="btn-salvar">Salvar</button>
-          </div>
-          <button data-item-acao="esgotar" data-id="${idAttr}" data-para="${it.disponivel ? 'nao' : 'sim'}"
-                  class="btn-item ${it.disponivel ? 'btn-item-esgotar' : 'btn-item-voltar'}">
-            <i class="fas ${it.disponivel ? 'fa-ban' : 'fa-check'}"></i> ${it.disponivel ? 'Marcar como esgotado' : 'Voltar ao cardápio'}
-          </button>
-        </div>`;
-    }
-
-    // `forcar` redesenha mesmo com um campo de preço em foco (depois de salvar); o redesenho
-    // periódico respeita o campo em foco para não apagar o que a funcionária está digitando.
-    function renderizarItens(forcar) {
-      if (visao !== 'itens') return;
-      if (!forcar && listaItensEl.contains(document.activeElement) && document.activeElement.tagName === 'INPUT') return;
-
-      if (itensAtuais === null) {
-        listaItensEl.innerHTML = `<div class="vazio">${itensErro
-          ? 'Não encontrei a aba "' + esc(CFG.ABA_CARDAPIO || 'Cardapio') + '" na planilha. Confira o nome e o cabeçalho.'
-          : 'Carregando itens...'}</div>`;
-        return;
-      }
-      const grupos = new Map();
-      itensAtuais.forEach(it => {
-        if (!grupos.has(it.categoria)) grupos.set(it.categoria, []);
-        grupos.get(it.categoria).push(it);
-      });
-      listaItensEl.innerHTML = [...grupos].map(([cat, itens]) => `
-        <h2 class="cat-titulo">${esc(cat)}</h2>
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">${itens.map(itemHTML).join('')}</div>`).join('')
-        || '<div class="vazio">A aba do cardápio está vazia.</div>';
-    }
-
-    carregarPlanilha();
-    setInterval(carregarPlanilha, 4000);
-    setInterval(() => { if (visao === 'itens') carregarItens(); }, 15000);
-  </script>
+</script>
 </body>
 </html>
