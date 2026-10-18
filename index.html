@@ -645,8 +645,10 @@ window.google = {
 
         // Toca o alerta só para pedido que apareceu depois da primeira leitura
         if (conhecidos) {
-          const novo = lista.some(p => !conhecidos.has(p.chave) && p.status === 'recebido');
-          if (novo) {
+          const novos = lista.filter(p => !conhecidos.has(p.chave) && p.status === 'recebido');
+          if (novos.length) {
+            // O pedido que acabou de chegar vira o destaque do cartão. Aqui a lista ainda está do mais antigo ao mais novo.
+            destaqueChave = novos[novos.length - 1].chave;
             if (telaAtual !== 'login') document.getElementById('som-alerta').play().catch(() => {});
             if (filtro !== 'recebido') abaComAlerta = true;
           }
